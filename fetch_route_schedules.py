@@ -32,7 +32,7 @@ PARIS_GARE_DU_NORD_STATION_ID = "stop_area:SNCF:87271007"
 
 def get_yesterday_date() -> str:
     """Get yesterday's date in YYYYMMDD format."""
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = datetime.now() - timedelta(days=0)
     return yesterday.strftime("%Y%m%d")
 
 
@@ -102,7 +102,6 @@ def fetch_route_schedules_for_line(line_id: str, date: str) -> Dict[str, Any]:
         "duration": 86400,  # 24 hours
         "data_freshness": "realtime",
         "disable_geojson": True,
-        # "depth": 2,
     }
 
     headers = {"Authorization": SNCF_API_KEY}
@@ -118,18 +117,18 @@ def fetch_route_schedules_for_line(line_id: str, date: str) -> Dict[str, Any]:
 
 
 def extract_relevant_schedules(
-    route_schedules_data: Dict[str, Any], from_station_name: str, to_station_name: str
+    route_schedules_data: Dict[str, Any], station1_name: str, station2_name: str
 ) -> List[Dict[str, Any]]:
     """
-    Extract schedules that include both from and to stations.
+    Extract schedules that include both stations.
 
     Args:
         route_schedules_data: The route schedules data from the API.
-        from_station_name: Name of the departure station.
-        to_station_name: Name of the arrival station.
+        station1_name: Name of the first station.
+        station2_name: Name of the second station.
 
     Returns:
-        A list of relevant route schedules.
+        A list of relevant route schedules with correct departure/arrival assignment.
     """
     relevant_schedules = []
 
@@ -139,20 +138,20 @@ def extract_relevant_schedules(
         rows = table.get("rows", [])
 
         # Find rows that contain our stations
-        from_rows = []
-        to_rows = []
+        station1_rows = []
+        station2_rows = []
 
         for row_idx, row in enumerate(rows):
             stop_point = row.get("stop_point", {})
             stop_point_name = stop_point.get("name", "")
 
-            if from_station_name.lower() in stop_point_name.lower():
-                from_rows.append(row_idx)
-            elif to_station_name.lower() in stop_point_name.lower():
-                to_rows.append(row_idx)
+            if station1_name.lower() in stop_point_name.lower():
+                station1_rows.append(row_idx)
+            elif station2_name.lower() in stop_point_name.lower():
+                station2_rows.append(row_idx)
 
         # If we found both stations in this schedule, check each vehicle journey
-        if from_rows and to_rows:
+        if station1_rows and station2_rows:
             # Iterate through each vehicle journey (header)
             for header_idx, header in enumerate(headers):
                 header_links = header.get("links", [])
@@ -164,59 +163,85 @@ def extract_relevant_schedules(
                         break
 
                 # Check if this vehicle journey serves both stations
-                serves_from_station = False
-                serves_to_station = False
+                serves_station1 = False
+                serves_station2 = False
 
-                # Check each from_row to see if this vehicle journey has a stop there
-                for from_row_idx in from_rows:
-                    from_row = rows[from_row_idx]
-                    date_times = from_row.get("date_times", [])
+                # Check each station1_row to see if this vehicle journey has a stop there
+                for station1_row_idx in station1_rows:
+                    station1_row = rows[station1_row_idx]
+                    date_times = station1_row.get("date_times", [])
 
                     # Check if this vehicle journey has a date_time entry in this row
                     if header_idx < len(date_times):
                         date_time_entry = date_times[header_idx]
                         if date_time_entry and date_time_entry.get("date_time"):
-                            serves_from_station = True
+                            serves_station1 = True
                             break
 
-                # Check each to_row to see if this vehicle journey has a stop there
-                for to_row_idx in to_rows:
-                    to_row = rows[to_row_idx]
-                    date_times = to_row.get("date_times", [])
+                # Check each station2_row to see if this vehicle journey has a stop there
+                for station2_row_idx in station2_rows:
+                    station2_row = rows[station2_row_idx]
+                    date_times = station2_row.get("date_times", [])
 
                     # Check if this vehicle journey has a date_time entry in this row
                     if header_idx < len(date_times):
                         date_time_entry = date_times[header_idx]
                         if date_time_entry and date_time_entry.get("date_time"):
-                            serves_to_station = True
+                            serves_station2 = True
                             break
 
                 # If this vehicle journey serves both stations, add it
-                if serves_from_station and serves_to_station:
+                if serves_station1 and serves_station2:
                     # Find the specific rows for this vehicle journey
-                    actual_from_row = None
-                    actual_to_row = None
+                    station1_row_obj = None
+                    station2_row_obj = None
 
-                    for from_row_idx in from_rows:
-                        from_row = rows[from_row_idx]
-                        date_times = from_row.get("date_times", [])
+                    for station1_row_idx in station1_rows:
+                        station1_row = rows[station1_row_idx]
+                        date_times = station1_row.get("date_times", [])
                         if header_idx < len(date_times) and date_times[header_idx].get("date_time"):
-                            actual_from_row = from_row
+                            station1_row_obj = station1_row
                             break
 
-                    for to_row_idx in to_rows:
-                        to_row = rows[to_row_idx]
-                        date_times = to_row.get("date_times", [])
+                    for station2_row_idx in station2_rows:
+                        station2_row = rows[station2_row_idx]
+                        date_times = station2_row.get("date_times", [])
                         if header_idx < len(date_times) and date_times[header_idx].get("date_time"):
-                            actual_to_row = to_row
+                            station2_row_obj = station2_row
                             break
 
-                    if actual_from_row and actual_to_row:
+                    if station1_row_obj and station2_row_obj:
+                        # Determine which station is departure and which is arrival based on times
+                        station1_time = station1_row_obj.get("date_times", [{}])[header_idx].get("date_time", "")
+                        station2_time = station2_row_obj.get("date_times", [{}])[header_idx].get("date_time", "")
+
+                        # Parse times to compare
+                        try:
+                            if station1_time and station2_time:
+                                station1_dt = datetime.strptime(station1_time, "%Y%m%dT%H%M%S")
+                                station2_dt = datetime.strptime(station2_time, "%Y%m%dT%H%M%S")
+
+                                # Station with earlier time is departure, later time is arrival
+                                if station1_dt < station2_dt:
+                                    departure_row = station1_row_obj
+                                    arrival_row = station2_row_obj
+                                else:
+                                    departure_row = station2_row_obj
+                                    arrival_row = station1_row_obj
+                            else:
+                                # If we can't determine times, use original order
+                                departure_row = station1_row_obj
+                                arrival_row = station2_row_obj
+                        except:
+                            # If time parsing fails, use original order
+                            departure_row = station1_row_obj
+                            arrival_row = station2_row_obj
+
                         relevant_schedules.append(
                             {
                                 "route_schedule": route_schedule,
-                                "from_row": actual_from_row,
-                                "to_row": actual_to_row,
+                                "from_row": departure_row,
+                                "to_row": arrival_row,
                                 "vehicle_journey_index": header_idx,
                                 "vehicle_journey_id": vehicle_journey_id,
                             }
@@ -249,7 +274,8 @@ def calculate_delay_minutes(actual_time: str, scheduled_time: str) -> int:
 
 def display_schedules_with_delays(schedules: List[Dict[str, Any]]):
     """
-    Display the schedules with scheduled and actual times.
+    Display the schedules with scheduled and actual times in a compact table format.
+    Splits results into two tables: trips to Paris and trips to Compiègne.
 
     Args:
         schedules: List of relevant route schedules.
@@ -258,111 +284,175 @@ def display_schedules_with_delays(schedules: List[Dict[str, Any]]):
         print("No relevant schedules found.")
         return
 
-    # Collect delay statistics
-    total_delays = []
+    # Separate schedules by direction
+    to_paris_schedules = []
+    to_compiegne_schedules = []
 
-    print(f"Found {len(schedules)} route schedules between Compiègne and Paris Nord:")
-    print()
-
-    for i, schedule_data in enumerate(schedules, 1):
-        route_schedule = schedule_data["route_schedule"]
+    for schedule_data in schedules:
         from_row = schedule_data["from_row"]
         to_row = schedule_data["to_row"]
+
+        # Extract station names
+        from_stop_point = from_row.get("stop_point", {})
+        dep_station = from_stop_point.get("name", "Unknown")
+
+        to_stop_point = to_row.get("stop_point", {})
+        arr_station = to_stop_point.get("name", "Unknown")
+
+        # Classify by arrival station
+        if "Paris" in arr_station:
+            to_paris_schedules.append(schedule_data)
+        elif "Compiègne" in arr_station:
+            to_compiegne_schedules.append(schedule_data)
+
+    # Function to display a single table
+    def display_table(schedules_list, title):
+        if not schedules_list:
+            return 0
+
+        # Collect delay statistics
+        total_delays = []
+
+        # First pass: collect data to determine column widths
+        route_names = []
+        dep_stations = []
+        arr_stations = []
+        dep_times = []
+        arr_times = []
+        delays = []
+
+        for schedule_data in schedules_list:
+            route_schedule = schedule_data["route_schedule"]
+            from_row = schedule_data["from_row"]
+            to_row = schedule_data["to_row"]
+            vehicle_journey_index = schedule_data.get("vehicle_journey_index", 0)
+
+            display_info = route_schedule.get("display_informations", {})
+            route_name = display_info.get("label", "Unknown")
+
+            # Extract departure station name
+            from_stop_point = from_row.get("stop_point", {})
+            dep_station = from_stop_point.get("name", "Unknown")
+
+            # Extract arrival station name
+            to_stop_point = to_row.get("stop_point", {})
+            arr_station = to_stop_point.get("name", "Unknown")
+
+            # Extract departure times
+            from_date_times = from_row.get("date_times", [])
+
+            dep_time_str = "N/A"
+
+            if vehicle_journey_index < len(from_date_times):
+                dt = from_date_times[vehicle_journey_index]
+                date_time = dt.get("date_time", "")
+
+                if date_time:
+                    # Extract time only (HH:MM) with proper formatting
+                    dep_time_str = f"{date_time[9:11]}:{date_time[11:13]}"
+
+            # Extract arrival times
+            to_date_times = to_row.get("date_times", [])
+
+            arr_time_str = "N/A"
+            arr_delay = None
+
+            if vehicle_journey_index < len(to_date_times):
+                dt = to_date_times[vehicle_journey_index]
+                date_time = dt.get("date_time", "")
+                base_date_time = dt.get("base_date_time", "")
+
+                if date_time:
+                    # Extract time only (HH:MM) with proper formatting
+                    arr_time_str = f"{date_time[9:11]}:{date_time[11:13]}"
+
+                    if base_date_time and date_time != base_date_time:
+                        arr_delay = calculate_delay_minutes(date_time, base_date_time)
+                        total_delays.append(arr_delay)
+
+            # Store data for column width calculation
+            route_names.append(route_name)
+            dep_stations.append(dep_station)
+            arr_stations.append(arr_station)
+            dep_times.append(dep_time_str)
+            arr_times.append(arr_time_str)
+            delays.append(f"{arr_delay} min" if arr_delay is not None else "")
+
+        # Calculate column widths based on content
+        route_width = max(len("Route"), max(len(name) for name in route_names)) + 2
+        dep_width = max(len("Departure"), max(len(time) for time in dep_times)) + 2
+        arr_width = max(len("Arrival"), max(len(time) for time in arr_times)) + 2
+        delay_width = max(len("Delay"), max(len(delay) for delay in delays)) + 2
+
+        # Create table header with dynamic widths
+        header_format = f"{{:<{route_width}}} {{:<{dep_width}}} {{:<{arr_width}}} {{:<{delay_width}}}"
+
+        print(f"\n{title}")
+        print("=" * len(title))
+        print(header_format.format("Route", "Departure", "Arrival", "Delay"))
+        print("-" * (route_width + dep_width + arr_width + delay_width + 10))
+
+        # Second pass: display the table
+        for i, schedule_data in enumerate(schedules_list):
+            route_name = route_names[i]
+            dep_time_str = dep_times[i]
+            arr_time_str = arr_times[i]
+            delay_str = delays[i]
+
+            # Print table row
+            print(header_format.format(route_name, dep_time_str, arr_time_str, delay_str))
+
+        return len(total_delays) if total_delays else 0
+
+    # Display both tables
+    print(f"Found {len(schedules)} route schedules between Compiègne and Paris Nord:")
+
+    paris_delays_count = display_table(to_paris_schedules, f"Trips to Paris ({len(to_paris_schedules)} schedules)")
+    compiegne_delays_count = display_table(
+        to_compiegne_schedules, f"Trips to Compiègne ({len(to_compiegne_schedules)} schedules)"
+    )
+
+    # Collect all delays for summary statistics
+    all_delays = []
+    for schedule_data in schedules:
+        to_row = schedule_data["to_row"]
         vehicle_journey_index = schedule_data.get("vehicle_journey_index", 0)
-        vehicle_journey_id = schedule_data.get("vehicle_journey_id", "Unknown")
 
-        display_info = route_schedule.get("display_informations", {})
-        route_name = display_info.get("label", "Unknown")
-        direction = display_info.get("direction", "Unknown")
-
-        print(f"Schedule {i}:")
-        print(f"  Route: {route_name}")
-        print(f"  Direction: {direction}")
-        print(f"  Vehicle Journey ID: {vehicle_journey_id}")
-
-        # Extract departure times from Compiègne (only for this specific vehicle journey)
-        from_stop_point = from_row.get("stop_point", {}).get("name", "Unknown")
-        from_date_times = from_row.get("date_times", [])
-
-        print(f"  Departure from {from_stop_point}:")
-        has_delays = False
-
-        # Only show the date_time for this specific vehicle journey
-        if vehicle_journey_index < len(from_date_times):
-            dt = from_date_times[vehicle_journey_index]
-            date_time = dt.get("date_time", "")
-            base_date_time = dt.get("base_date_time", "")
-            data_freshness = dt.get("data_freshness", "base_schedule")
-
-            if date_time and base_date_time and date_time != base_date_time:
-                delay_minutes = calculate_delay_minutes(date_time, base_date_time)
-                print(
-                    f"    🚆 {date_time} (scheduled: {base_date_time}) - {delay_minutes} min delay - {data_freshness}"
-                )
-                total_delays.append(delay_minutes)
-                has_delays = True
-            elif date_time and data_freshness == "realtime":
-                print(f"    🚆 {date_time} - {data_freshness}")
-            elif date_time:
-                print(f"    🚆 {date_time} - {data_freshness}")
-
-        if not has_delays and not date_time:
-            print("    No realtime delays found for departures")
-
-        # Extract arrival times at Paris Nord (only for this specific vehicle journey)
-        to_stop_point = to_row.get("stop_point", {}).get("name", "Unknown")
         to_date_times = to_row.get("date_times", [])
-
-        print(f"  Arrival at {to_stop_point}:")
-        has_delays = False
-
-        # Only show the date_time for this specific vehicle journey
         if vehicle_journey_index < len(to_date_times):
             dt = to_date_times[vehicle_journey_index]
             date_time = dt.get("date_time", "")
             base_date_time = dt.get("base_date_time", "")
-            data_freshness = dt.get("data_freshness", "base_schedule")
 
-            if date_time and base_date_time and date_time != base_date_time:
-                delay_minutes = calculate_delay_minutes(date_time, base_date_time)
-                print(
-                    f"    🚆 {date_time} (scheduled: {base_date_time}) - {delay_minutes} min delay - {data_freshness}"
-                )
-                total_delays.append(delay_minutes)
-                has_delays = True
-            elif date_time and data_freshness == "realtime":
-                print(f"    🚆 {date_time} - {data_freshness}")
-            elif date_time:
-                print(f"    🚆 {date_time} - {data_freshness}")
+            if base_date_time and date_time and date_time != base_date_time:
+                arr_delay = calculate_delay_minutes(date_time, base_date_time)
+                all_delays.append(arr_delay)
 
-        if not has_delays and not date_time:
-            print("    No realtime delays found for arrivals")
-
-        print()
-
-    # Display summary statistics
-    if total_delays:
-        print("=" * 80)
+    # Display summary statistics if we have any delays
+    if all_delays:
+        print("\n" + "=" * 80)
         print("DELAY SUMMARY")
         print("=" * 80)
-        print(f"Total delays found: {len(total_delays)}")
-        print(f"Average delay: {sum(total_delays) / len(total_delays):.1f} minutes")
-        print(f"Maximum delay: {max(total_delays)} minutes")
-        print(f"Minimum delay: {min(total_delays)} minutes")
+        print(f"Total delays found: {len(all_delays)}")
+        print(f"Average delay: {sum(all_delays) / len(all_delays):.1f} minutes")
+        print(f"Maximum delay: {max(all_delays)} minutes")
+        print(f"Minimum delay: {min(all_delays)} minutes")
 
         # Count delays by range
-        on_time = sum(1 for d in total_delays if abs(d) <= 5)
-        minor_delays = sum(1 for d in total_delays if 5 < d <= 15)
-        significant_delays = sum(1 for d in total_delays if d > 15)
-        early_arrivals = sum(1 for d in total_delays if d < -5)
+        on_time = sum(1 for d in all_delays if abs(d) <= 5)
+        minor_delays = sum(1 for d in all_delays if 5 < d <= 15)
+        significant_delays = sum(1 for d in all_delays if d > 15)
+        early_arrivals = sum(1 for d in all_delays if d < -5)
 
         print("\nDelay distribution:")
-        print(f"  On time (±5 min): {on_time} ({on_time / len(total_delays) * 100:.1f}%)")
-        print(f"  Minor delays (5-15 min): {minor_delays} ({minor_delays / len(total_delays) * 100:.1f}%)")
+        print(f"  On time (±5 min): {on_time} ({on_time / len(all_delays) * 100:.1f}%)")
+        print(f"  Minor delays (5-15 min): {minor_delays} ({minor_delays / len(all_delays) * 100:.1f}%)")
         print(
-            f"  Significant delays (>15 min): {significant_delays} ({significant_delays / len(total_delays) * 100:.1f}%)"
+            f"  Significant delays (>15 min): {significant_delays} ({significant_delays / len(all_delays) * 100:.1f}%)"
         )
-        print(f"  Early arrivals (<-5 min): {early_arrivals} ({early_arrivals / len(total_delays) * 100:.1f}%)")
+        print(f"  Early arrivals (<-5 min): {early_arrivals} ({early_arrivals / len(all_delays) * 100:.1f}%)")
+
+    print()
 
 
 def main():
