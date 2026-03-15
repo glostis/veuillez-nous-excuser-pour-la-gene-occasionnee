@@ -1,0 +1,10 @@
+services:
+  fetch-schedules:
+    build: .
+    container_name: fetch-schedules
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./logs:/var/log
+    environment:
+      - TZ=Europe/Paris

@@ -1,44 +1,61 @@
-# TER Hauts-de-France
+# TER HDF - Train Schedule Fetcher
 
-A Python project to scrape real-time train departure and arrival times from Compiègne to Paris Gare du Nord using the SNCF API, and analyze delays on this line.
+## Docker Deployment
 
-## Features
-- Fetch real-time train schedules using the SNCF API
-- Calculate delays between scheduled and actual times
-- Generate statistics on train punctuality
-- Visualize delay patterns
-
-## Setup
+This project is set up to run in a Docker container with a daily cron job.
 
 ### Prerequisites
-- Python 3.8+
-- `uv` for dependency management
+- Docker
+- Docker Compose
 
-### Installation
-1. Clone the repository
-2. Install dependencies:
+### Setup
+
+1. **Build and start the container:**
    ```bash
-   uv sync
+   docker-compose up -d --build
    ```
 
-## Usage
+2. **Check logs:**
+   ```bash
+   docker-compose logs -f fetch-schedules
+   ```
 
+3. **View cron logs:**
+   ```bash
+   tail -f logs/cron.log
+   ```
+
+### Configuration
+
+- The script runs daily at 5:05 AM (Paris time)
+- Data is stored in the `data/` directory on your host machine
+- Logs are available in the `logs/` directory
+- The timezone is set to Europe/Paris
+
+### Environment Variables
+
+The `.env` file contains the SNCF API key. Make sure to keep this file secure.
+
+### Updating
+
+To update the container after making changes:
 ```bash
-# Fetch and analyze train data
-python -m ter_hdf fetch
-
-# Generate statistics
-python -m ter_hdf stats
+docker-compose down
+docker-compose up -d --build
 ```
 
-## Configuration
+### Manual Execution
 
-Create a `.env` file with your SNCF API credentials:
-
-```env
-SNCF_API_KEY=your_api_key_here
+To run the script manually:
+```bash
+docker-compose exec fetch-schedules python fetch_and_store_route_schedules.py
 ```
 
-## License
+## Original README
 
-MIT
+This script fetches route schedules for trains between Compiègne and Paris Nord using the SNCF API and stores the data in DuckDB.
+
+The script focuses on:
+1. Fetching route schedules from the API
+2. Filtering to keep only routes passing through Paris and Compiègne
+3. Storing raw data in DuckDB with one row per train trip

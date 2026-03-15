@@ -1,0 +1,2 @@
+# Run the script daily at 5:05 AM
+5 5 * * * root cd /app && /usr/local/bin/python fetch_and_store_route_schedules.py >> /var/log/cron.log 2>&1
