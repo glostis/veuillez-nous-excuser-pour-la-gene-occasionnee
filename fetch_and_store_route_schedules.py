@@ -46,6 +46,14 @@ def datetime_to_unix_timestamp(dt_str: str) -> int:
     return int(dt.timestamp())
 
 
+def datetime_to_timestamp(dt_str: str) -> str:
+    """Convert datetime string to ISO format for TIMESTAMP WITH TIME ZONE."""
+    if not dt_str:
+        return "1970-01-01T00:00:00Z"
+    dt = datetime.strptime(dt_str, "%Y%m%dT%H%M%S")
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def fetch_lines_between_stations(station_1: str, station_2: str) -> list[dict[str, Any]]:
     """
     Fetch all lines that run between two stations.
@@ -255,25 +263,25 @@ def store_in_duckdb(schedules: list[dict[str, Any]]):
     """
     conn = duckdb.connect(DB_PATH)
 
-    # Create table if it doesn't exist
+    # Create table with TIMESTAMP WITH TIME ZONE columns
     conn.execute(f"""
     CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
         id VARCHAR PRIMARY KEY,
         train_number VARCHAR,
         train_line_name VARCHAR,
         departure_station_name VARCHAR,
-        scheduled_departure_time INTEGER,
-        real_departure_time INTEGER,
+        scheduled_departure_time TIMESTAMP WITH TIME ZONE,
+        real_departure_time TIMESTAMP WITH TIME ZONE,
         arrival_station_name VARCHAR,
-        scheduled_arrival_time INTEGER,
-        real_arrival_time INTEGER,
-        fetch_timestamp INTEGER
+        scheduled_arrival_time TIMESTAMP WITH TIME ZONE,
+        real_arrival_time TIMESTAMP WITH TIME ZONE,
+        fetch_timestamp TIMESTAMP WITH TIME ZONE
     )
     """)
 
     # Prepare data for insertion
     data_to_insert = []
-    current_timestamp = int(datetime.now().timestamp())
+    current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     for schedule_data in schedules:
         route_schedule = schedule_data["route_schedule"]
@@ -292,32 +300,32 @@ def store_in_duckdb(schedules: list[dict[str, Any]]):
         departure_station_name = from_stop_point.get("name", "Unknown")
 
         from_date_times = from_row.get("date_times", [])
-        scheduled_departure_time = 0
-        real_departure_time = 0
+        scheduled_departure_time = "1970-01-01T00:00:00Z"
+        real_departure_time = "1970-01-01T00:00:00Z"
 
         if vehicle_journey_index < len(from_date_times):
             dt = from_date_times[vehicle_journey_index]
             base_date_time = dt.get("base_date_time", "")
             date_time = dt.get("date_time", "")
 
-            scheduled_departure_time = datetime_to_unix_timestamp(base_date_time)
-            real_departure_time = datetime_to_unix_timestamp(date_time)
+            scheduled_departure_time = datetime_to_timestamp(base_date_time)
+            real_departure_time = datetime_to_timestamp(date_time)
 
         # Extract arrival information
         to_stop_point = to_row.get("stop_point", {})
         arrival_station_name = to_stop_point.get("name", "Unknown")
 
         to_date_times = to_row.get("date_times", [])
-        scheduled_arrival_time = 0
-        real_arrival_time = 0
+        scheduled_arrival_time = "1970-01-01T00:00:00Z"
+        real_arrival_time = "1970-01-01T00:00:00Z"
 
         if vehicle_journey_index < len(to_date_times):
             dt = to_date_times[vehicle_journey_index]
             base_date_time = dt.get("base_date_time", "")
             date_time = dt.get("date_time", "")
 
-            scheduled_arrival_time = datetime_to_unix_timestamp(base_date_time)
-            real_arrival_time = datetime_to_unix_timestamp(date_time)
+            scheduled_arrival_time = datetime_to_timestamp(base_date_time)
+            real_arrival_time = datetime_to_timestamp(date_time)
 
         data_to_insert.append(
             {
@@ -336,8 +344,21 @@ def store_in_duckdb(schedules: list[dict[str, Any]]):
 
     # Insert data using upsert to avoid duplicates
     if data_to_insert:
-        # Create a temporary table for the new data
-        conn.execute(f"CREATE TEMP TABLE temp_{TABLE_NAME} AS SELECT * FROM {TABLE_NAME} WHERE 1=0")
+        # Create a temporary table with the correct schema
+        conn.execute(f"""
+        CREATE TEMP TABLE temp_{TABLE_NAME} (
+            id VARCHAR PRIMARY KEY,
+            train_number VARCHAR,
+            train_line_name VARCHAR,
+            departure_station_name VARCHAR,
+            scheduled_departure_time TIMESTAMP WITH TIME ZONE,
+            real_departure_time TIMESTAMP WITH TIME ZONE,
+            arrival_station_name VARCHAR,
+            scheduled_arrival_time TIMESTAMP WITH TIME ZONE,
+            real_arrival_time TIMESTAMP WITH TIME ZONE,
+            fetch_timestamp TIMESTAMP WITH TIME ZONE
+        )
+        """)
 
         # Insert new data into temp table
         for row in data_to_insert:
@@ -347,12 +368,12 @@ def store_in_duckdb(schedules: list[dict[str, Any]]):
                 '{row["train_number"]}',
                 '{row["train_line_name"]}',
                 '{row["departure_station_name"]}',
-                {row["scheduled_departure_time"]},
-                {row["real_departure_time"]},
+                TIMESTAMP '{row["scheduled_departure_time"]}',
+                TIMESTAMP '{row["real_departure_time"]}',
                 '{row["arrival_station_name"]}',
-                {row["scheduled_arrival_time"]},
-                {row["real_arrival_time"]},
-                {row["fetch_timestamp"]}
+                TIMESTAMP '{row["scheduled_arrival_time"]}',
+                TIMESTAMP '{row["real_arrival_time"]}',
+                TIMESTAMP '{row["fetch_timestamp"]}'
             )
             """)
 
