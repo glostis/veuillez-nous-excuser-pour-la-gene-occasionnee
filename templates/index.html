@@ -67,13 +67,42 @@
                 const response = await fetch('/api/stats-by-line');
                 const lineStats = await response.json();
                 
-                let html = '<h2>Statistics by Train Line</h2>';
-                html += '<table>';
-                html += '<tr><th>Train Line</th><th>Total</th><th>On Time</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Avg Delay</th></tr>';
+                // Separate stats by direction
+                const compiegneToParis = lineStats.filter(stat => stat.direction === 'Compiègne → Paris Nord');
+                const parisToCompiegne = lineStats.filter(stat => stat.direction === 'Paris Nord → Compiègne');
                 
-                lineStats.forEach(stat => {
+                let html = '<h2>Statistics by Train Line</h2>';
+                
+                // Compiègne to Paris table
+                html += '<h3>Compiègne → Paris Nord</h3>';
+                html += '<table>';
+                html += '<tr><th>Train Line</th><th>Departure</th><th>Total</th><th>On Time</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Avg Delay</th></tr>';
+                
+                compiegneToParis.forEach(stat => {
                     html += `<tr>
-                        <td>${stat.line}</td>
+                        <td>${stat.line.split(' - ')[0]}</td>
+                        <td>${stat.departure_time}</td>
+                        <td>${stat.total_trains}</td>
+                        <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.average_delay_minutes.toFixed(1)} min</td>
+                    </tr>`;
+                });
+                
+                html += '</table><br>';
+                
+                // Paris to Compiègne table
+                html += '<h3>Paris Nord → Compiègne</h3>';
+                html += '<table>';
+                html += '<tr><th>Train Line</th><th>Departure</th><th>Total</th><th>On Time</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Avg Delay</th></tr>';
+                
+                parisToCompiegne.forEach(stat => {
+                    html += `<tr>
+                        <td>${stat.line.split(' - ')[0]}</td>
+                        <td>${stat.departure_time}</td>
                         <td>${stat.total_trains}</td>
                         <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
                         <td>${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)</td>

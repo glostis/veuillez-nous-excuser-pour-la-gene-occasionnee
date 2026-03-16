@@ -110,20 +110,23 @@ def get_stats():
 
 @app.route("/api/stats-by-line")
 def get_stats_by_line():
-    """Get delay statistics by train line."""
+    """Get delay statistics by train line, split by direction."""
     conn = get_db_connection()
 
     try:
-        # Get all records
+        # Get all records with direction information
         query = f"""
         SELECT
             train_line_name,
             train_number,
+            departure_station_name,
+            arrival_station_name,
             scheduled_departure_time,
             real_departure_time,
             scheduled_arrival_time,
             real_arrival_time
         FROM {TABLE_NAME}
+        ORDER BY scheduled_departure_time ASC
         """
 
         results = conn.execute(query).fetchdf()
@@ -131,7 +134,7 @@ def get_stats_by_line():
         if len(results) == 0:
             return jsonify({"error": "No data found"}), 404
 
-        # Group by train line and number (e.g., "K13 08:02")
+        # Group by train line and number with direction (e.g., "K13 08:02")
         line_stats = {}
 
         for _, row in results.iterrows():
@@ -140,19 +143,30 @@ def get_stats_by_line():
             # Convert timestamp to string if needed
             dep_time_str = str(dep_time)
             time_part = dep_time_str.split(" ")[1].split(":")[:2]  # Get HH:MM
-            line_key = f"{row['train_line_name']} {row['train_number']} ({':'.join(time_part)})"
+            
+            # Determine direction
+            departure = row["departure_station_name"]
+            arrival = row["arrival_station_name"]
+            direction = f"{departure} → {arrival}"
+            
+            line_key = f"{row['train_line_name']} {row['train_number']} ({':'.join(time_part)}) - {direction}"
 
             # Calculate arrival delay
             delay = calculate_delay_minutes(row["scheduled_arrival_time"], row["real_arrival_time"])
 
             if delay is not None:
                 if line_key not in line_stats:
-                    line_stats[line_key] = []
-                line_stats[line_key].append(delay)
+                    line_stats[line_key] = {
+                        'delays': [],
+                        'direction': direction,
+                        'departure_time': ':'.join(time_part)
+                    }
+                line_stats[line_key]['delays'].append(delay)
 
         # Calculate statistics for each line
         stats_by_line = []
-        for line_key, delays in line_stats.items():
+        for line_key, data in line_stats.items():
+            delays = data['delays']
             total = len(delays)
             on_time = sum(1 for d in delays if d <= 0)
             delay_5min = sum(1 for d in delays if 0 < d <= 5)
@@ -165,6 +179,8 @@ def get_stats_by_line():
             stats_by_line.append(
                 {
                     "line": line_key,
+                    "direction": data['direction'],
+                    "departure_time": data['departure_time'],
                     "total_trains": total,
                     "on_time": on_time,
                     "on_time_percentage": (on_time / total * 100) if total > 0 else 0,
@@ -180,8 +196,8 @@ def get_stats_by_line():
                 }
             )
 
-        # Sort by average delay (descending)
-        stats_by_line.sort(key=lambda x: x["average_delay_minutes"], reverse=True)
+        # Sort by departure time (ascending)
+        stats_by_line.sort(key=lambda x: x["departure_time"])
 
         return jsonify(stats_by_line)
 
