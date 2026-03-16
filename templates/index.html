@@ -2,6 +2,7 @@
 <html>
   <head>
     <title>Veuillez nous excuser pour la gêne occasionnée</title>
+    <link rel="icon" href="/static/ter.png" type="image/png" />
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -44,15 +45,37 @@
       tr:nth-child(even) {
         background-color: #f9f9f9;
       }
+      .header-with-logo {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .ter-logo {
+        height: 60px;
+      }
     </style>
   </head>
   <body>
-    <h1>Veuillez nous excuser pour la gêne occasionnée</h1>
-    <p><i>Analyse des retards de trains sur les lignes TER HDF Compiègne ↔ Paris Gare du Nord</i></p>
+    <div class="header-with-logo">
+      <img src="/static/ter.png" alt="TER HDF Logo" class="ter-logo" />
+      <div>
+        <h1>Veuillez nous excuser pour la gêne occasionnée</h1>
+        <p>
+          <i
+            >Analyse des retards de trains sur les lignes TER HDF Compiègne ↔
+            Paris Gare du Nord</i
+          >
+        </p>
+      </div>
+    </div>
 
     <div id="stats"></div>
     <div id="line-stats"></div>
-    <div id="timestamp" style="margin-top: 20px; font-size: 14px; color: #666;"></div>
+    <div
+      id="timestamp"
+      style="margin-top: 20px; font-size: 14px; color: #666"
+    ></div>
 
     <script>
       async function loadStats() {
@@ -169,12 +192,17 @@
           let html =
             "<p><strong>Dernière mise à jour des données :</strong> " +
             timestamp.fetch_timestamp +
-            " (" + timestamp.row_count + " lignes ajoutées)" +
+            " (" +
+            timestamp.row_count +
+            " lignes ajoutées)" +
             "</p>";
 
           document.getElementById("timestamp").innerHTML = html;
         } catch (error) {
-          console.error("Erreur lors du chargement de la date de dernière mise à jour :", error);
+          console.error(
+            "Erreur lors du chargement de la date de dernière mise à jour :",
+            error,
+          );
         }
       }
 
@@ -187,4 +215,3 @@
     </script>
   </body>
 </html>
-
