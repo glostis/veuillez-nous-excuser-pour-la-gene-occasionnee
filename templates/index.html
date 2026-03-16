@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Train Delay Analytics</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .stats-container { display: flex; gap: 20px; margin-bottom: 30px; }
+        .stat-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; flex: 1; }
+        .stat-box h3 { margin-top: 0; }
+        .stat-value { font-size: 24px; font-weight: bold; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Train Delay Analytics: Compiègne ↔ Paris</h1>
+    
+    <div id="stats"></div>
+    <div id="line-stats"></div>
+    
+    <script>
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                let html = '<h2>Overall Statistics</h2>';
+                html += '<div class="stats-container">';
+                html += `<div class="stat-box">
+                    <h3>Total Trains</h3>
+                    <div class="stat-value">${stats.total_trains}</div>
+                </div>`;
+                html += `<div class="stat-box">
+                    <h3>On Time</h3>
+                    <div class="stat-value">${stats.on_time} (${stats.on_time_percentage.toFixed(1)}%)</div>
+                </div>`;
+                html += `<div class="stat-box">
+                    <h3>≤5 min Delay</h3>
+                    <div class="stat-value">${stats.delay_5min} (${stats.delay_5min_percentage.toFixed(1)}%)</div>
+                </div>`;
+                html += `<div class="stat-box">
+                    <h3>≤15 min Delay</h3>
+                    <div class="stat-value">${stats.delay_15min} (${stats.delay_15min_percentage.toFixed(1)}%)</div>
+                </div>`;
+                html += `<div class="stat-box">
+                    <h3>≤45 min Delay</h3>
+                    <div class="stat-value">${stats.delay_45min} (${stats.delay_45min_percentage.toFixed(1)}%)</div>
+                </div>`;
+                html += `<div class="stat-box">
+                    <h3>>45 min Delay</h3>
+                    <div class="stat-value">${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)</div>
+                </div>`;
+                html += '</div>';
+                
+                document.getElementById('stats').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        async function loadLineStats() {
+            try {
+                const response = await fetch('/api/stats-by-line');
+                const lineStats = await response.json();
+                
+                let html = '<h2>Statistics by Train Line</h2>';
+                html += '<table>';
+                html += '<tr><th>Train Line</th><th>Total</th><th>On Time</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Avg Delay</th></tr>';
+                
+                lineStats.forEach(stat => {
+                    html += `<tr>
+                        <td>${stat.line}</td>
+                        <td>${stat.total_trains}</td>
+                        <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
+                        <td>${stat.average_delay_minutes.toFixed(1)} min</td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                document.getElementById('line-stats').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading line stats:', error);
+            }
+        }
+        
+        // Load data when page loads
+        window.onload = function() {
+            loadStats();
+            loadLineStats();
+        };
+    </script>
+</body>
+</html>
