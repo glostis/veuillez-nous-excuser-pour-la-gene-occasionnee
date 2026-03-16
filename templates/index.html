@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Train Delay Analytics</title>
+    <title>Analyse des retards de trains</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         h1 { color: #333; }
@@ -16,7 +16,7 @@
     </style>
 </head>
 <body>
-    <h1>Train Delay Analytics: Compiègne ↔ Paris</h1>
+    <h1>Analyse des retards de trains : Compiègne ↔ Paris</h1>
     
     <div id="stats"></div>
     <div id="line-stats"></div>
@@ -27,30 +27,30 @@
                 const response = await fetch('/api/stats');
                 const stats = await response.json();
                 
-                let html = '<h2>Overall Statistics</h2>';
+                let html = '<h2>Statistiques globales</h2>';
                 html += '<div class="stats-container">';
                 html += `<div class="stat-box">
-                    <h3>Total Trains</h3>
+                    <h3>Total des trains</h3>
                     <div class="stat-value">${stats.total_trains}</div>
                 </div>`;
                 html += `<div class="stat-box">
-                    <h3>On Time</h3>
+                    <h3>À l'heure</h3>
                     <div class="stat-value">${stats.on_time} (${stats.on_time_percentage.toFixed(1)}%)</div>
                 </div>`;
                 html += `<div class="stat-box">
-                    <h3>≤5 min Delay</h3>
+                    <h3>≤5 min de retard</h3>
                     <div class="stat-value">${stats.delay_5min} (${stats.delay_5min_percentage.toFixed(1)}%)</div>
                 </div>`;
                 html += `<div class="stat-box">
-                    <h3>≤15 min Delay</h3>
+                    <h3>≤15 min de retard</h3>
                     <div class="stat-value">${stats.delay_15min} (${stats.delay_15min_percentage.toFixed(1)}%)</div>
                 </div>`;
                 html += `<div class="stat-box">
-                    <h3>≤45 min Delay</h3>
+                    <h3>≤45 min de retard</h3>
                     <div class="stat-value">${stats.delay_45min} (${stats.delay_45min_percentage.toFixed(1)}%)</div>
                 </div>`;
                 html += `<div class="stat-box">
-                    <h3>>45 min Delay</h3>
+                    <h3>>45 min de retard</h3>
                     <div class="stat-value">${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)</div>
                 </div>`;
                 html += '</div>';
@@ -58,7 +58,7 @@
                 document.getElementById('stats').innerHTML = html;
                 
             } catch (error) {
-                console.error('Error loading stats:', error);
+                console.error('Erreur lors du chargement des statistiques:', error);
             }
         }
         
@@ -67,16 +67,16 @@
                 const response = await fetch('/api/stats-by-line');
                 const lineStats = await response.json();
                 
-                // Separate stats by direction
+                // Séparer les statistiques par direction
                 const compiegneToParis = lineStats.filter(stat => stat.direction === 'Compiègne → Paris Nord');
                 const parisToCompiegne = lineStats.filter(stat => stat.direction === 'Paris Nord → Compiègne');
                 
-                let html = '<h2>Statistics by Train Line</h2>';
+                let html = '<h2>Statistiques par ligne de train</h2>';
                 
-                // Compiègne to Paris table
+                // Tableau Compiègne vers Paris
                 html += '<h3>Compiègne → Paris Nord</h3>';
                 html += '<table>';
-                html += '<tr><th>Train Line</th><th>Departure</th><th>Total</th><th>On Time</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Avg Delay</th></tr>';
+                html += '<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>';
                 
                 compiegneToParis.forEach(stat => {
                     html += `<tr>
@@ -94,10 +94,10 @@
                 
                 html += '</table><br>';
                 
-                // Paris to Compiègne table
+                // Tableau Paris vers Compiègne
                 html += '<h3>Paris Nord → Compiègne</h3>';
                 html += '<table>';
-                html += '<tr><th>Train Line</th><th>Departure</th><th>Total</th><th>On Time</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Avg Delay</th></tr>';
+                html += '<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>';
                 
                 parisToCompiegne.forEach(stat => {
                     html += `<tr>
@@ -117,11 +117,11 @@
                 document.getElementById('line-stats').innerHTML = html;
                 
             } catch (error) {
-                console.error('Error loading line stats:', error);
+                console.error('Erreur lors du chargement des statistiques par ligne:', error);
             }
         }
         
-        // Load data when page loads
+        // Charger les données au chargement de la page
         window.onload = function() {
             loadStats();
             loadLineStats();
