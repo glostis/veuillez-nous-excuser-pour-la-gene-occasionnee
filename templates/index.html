@@ -1,86 +1,123 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <title>Analyse des retards de trains</title>
+  <head>
+    <title>Veuillez nous excuser pour la gêne occasionnée</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #333; }
-        .stats-container { display: flex; gap: 20px; margin-bottom: 30px; }
-        .stat-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; flex: 1; }
-        .stat-box h3 { margin-top: 0; }
-        .stat-value { font-size: 24px; font-weight: bold; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      h1 {
+        color: #333;
+      }
+      .stats-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .stat-box {
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 5px;
+        flex: 1;
+      }
+      .stat-box h3 {
+        margin-top: 0;
+      }
+      .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
     </style>
-</head>
-<body>
-    <h1>Analyse des retards de trains : Compiègne ↔ Paris</h1>
-    
+  </head>
+  <body>
+    <h1>Veuillez nous excuser pour la gêne occasionnée</h1>
+    <p><i>Analyse des retards de trains sur les lignes TER HDF Compiègne ↔ Paris Gare du Nord</i></p>
+
     <div id="stats"></div>
     <div id="line-stats"></div>
-    
+    <div id="timestamp" style="margin-top: 20px; font-size: 14px; color: #666;"></div>
+
     <script>
-        async function loadStats() {
-            try {
-                const response = await fetch('/api/stats');
-                const stats = await response.json();
-                
-                let html = '<h2>Statistiques globales</h2>';
-                html += '<div class="stats-container">';
-                html += `<div class="stat-box">
+      async function loadStats() {
+        try {
+          const response = await fetch("/api/stats");
+          const stats = await response.json();
+
+          let html = "<h2>Statistiques globales</h2>";
+          html += '<div class="stats-container">';
+          html += `<div class="stat-box">
                     <h3>Total des trains</h3>
                     <div class="stat-value">${stats.total_trains}</div>
                 </div>`;
-                html += `<div class="stat-box">
+          html += `<div class="stat-box">
                     <h3>À l'heure</h3>
                     <div class="stat-value">${stats.on_time} (${stats.on_time_percentage.toFixed(1)}%)</div>
                 </div>`;
-                html += `<div class="stat-box">
+          html += `<div class="stat-box">
                     <h3>≤5 min de retard</h3>
                     <div class="stat-value">${stats.delay_5min} (${stats.delay_5min_percentage.toFixed(1)}%)</div>
                 </div>`;
-                html += `<div class="stat-box">
+          html += `<div class="stat-box">
                     <h3>≤15 min de retard</h3>
                     <div class="stat-value">${stats.delay_15min} (${stats.delay_15min_percentage.toFixed(1)}%)</div>
                 </div>`;
-                html += `<div class="stat-box">
+          html += `<div class="stat-box">
                     <h3>≤45 min de retard</h3>
                     <div class="stat-value">${stats.delay_45min} (${stats.delay_45min_percentage.toFixed(1)}%)</div>
                 </div>`;
-                html += `<div class="stat-box">
+          html += `<div class="stat-box">
                     <h3>>45 min de retard</h3>
                     <div class="stat-value">${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)</div>
                 </div>`;
-                html += '</div>';
-                
-                document.getElementById('stats').innerHTML = html;
-                
-            } catch (error) {
-                console.error('Erreur lors du chargement des statistiques:', error);
-            }
+          html += "</div>";
+
+          document.getElementById("stats").innerHTML = html;
+        } catch (error) {
+          console.error("Erreur lors du chargement des statistiques:", error);
         }
-        
-        async function loadLineStats() {
-            try {
-                const response = await fetch('/api/stats-by-line');
-                const lineStats = await response.json();
-                
-                // Séparer les statistiques par direction
-                const compiegneToParis = lineStats.filter(stat => stat.direction === 'Compiègne → Paris Nord');
-                const parisToCompiegne = lineStats.filter(stat => stat.direction === 'Paris Nord → Compiègne');
-                
-                let html = '<h2>Statistiques par ligne de train</h2>';
-                
-                // Tableau Compiègne vers Paris
-                html += '<h3>Compiègne → Paris Nord</h3>';
-                html += '<table>';
-                html += '<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>';
-                
-                compiegneToParis.forEach(stat => {
-                    html += `<tr>
-                        <td>${stat.line.split(' - ')[0]}</td>
+      }
+
+      async function loadLineStats() {
+        try {
+          const response = await fetch("/api/stats-by-line");
+          const lineStats = await response.json();
+
+          // Séparer les statistiques par direction
+          const compiegneToParis = lineStats.filter(
+            (stat) => stat.direction === "Compiègne → Paris Nord",
+          );
+          const parisToCompiegne = lineStats.filter(
+            (stat) => stat.direction === "Paris Nord → Compiègne",
+          );
+
+          let html = "<h2>Statistiques par ligne de train</h2>";
+
+          // Tableau Compiègne vers Paris
+          html += "<h3>Compiègne → Paris Nord</h3>";
+          html += "<table>";
+          html +=
+            "<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>";
+
+          compiegneToParis.forEach((stat) => {
+            html += `<tr>
+                        <td>${stat.line.split(" - ")[0]}</td>
                         <td>${stat.departure_time}</td>
                         <td>${stat.total_trains}</td>
                         <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
@@ -90,18 +127,19 @@
                         <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
                         <td>${stat.average_delay_minutes.toFixed(1)} min</td>
                     </tr>`;
-                });
-                
-                html += '</table><br>';
-                
-                // Tableau Paris vers Compiègne
-                html += '<h3>Paris Nord → Compiègne</h3>';
-                html += '<table>';
-                html += '<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>';
-                
-                parisToCompiegne.forEach(stat => {
-                    html += `<tr>
-                        <td>${stat.line.split(' - ')[0]}</td>
+          });
+
+          html += "</table><br>";
+
+          // Tableau Paris vers Compiègne
+          html += "<h3>Paris Nord → Compiègne</h3>";
+          html += "<table>";
+          html +=
+            "<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>";
+
+          parisToCompiegne.forEach((stat) => {
+            html += `<tr>
+                        <td>${stat.line.split(" - ")[0]}</td>
                         <td>${stat.departure_time}</td>
                         <td>${stat.total_trains}</td>
                         <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
@@ -111,21 +149,42 @@
                         <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
                         <td>${stat.average_delay_minutes.toFixed(1)} min</td>
                     </tr>`;
-                });
-                
-                html += '</table>';
-                document.getElementById('line-stats').innerHTML = html;
-                
-            } catch (error) {
-                console.error('Erreur lors du chargement des statistiques par ligne:', error);
-            }
+          });
+
+          html += "</table>";
+          document.getElementById("line-stats").innerHTML = html;
+        } catch (error) {
+          console.error(
+            "Erreur lors du chargement des statistiques par ligne:",
+            error,
+          );
         }
-        
-        // Charger les données au chargement de la page
-        window.onload = function() {
-            loadStats();
-            loadLineStats();
-        };
+      }
+
+      async function loadTimestamp() {
+        try {
+          const response = await fetch("/api/latest-timestamp");
+          const timestamp = await response.json();
+
+          let html =
+            "<p><strong>Dernière mise à jour des données :</strong> " +
+            timestamp.fetch_timestamp +
+            " (" + timestamp.row_count + " lignes ajoutées)" +
+            "</p>";
+
+          document.getElementById("timestamp").innerHTML = html;
+        } catch (error) {
+          console.error("Erreur lors du chargement de la date de dernière mise à jour :", error);
+        }
+      }
+
+      // Charger les données au chargement de la page
+      window.onload = function () {
+        loadStats();
+        loadLineStats();
+        loadTimestamp();
+      };
     </script>
-</body>
+  </body>
 </html>
+

@@ -3,7 +3,6 @@
 Flask app to display analytics on train delays between Compiègne and Paris.
 """
 
-import os
 from datetime import datetime
 
 import duckdb
@@ -108,6 +107,43 @@ def get_stats():
         conn.close()
 
 
+@app.route("/api/latest-timestamp")
+def get_latest_timestamp():
+    """Get the latest fetch timestamp and corresponding number of train schedules."""
+    conn = get_db_connection()
+
+    try:
+        # Get the record with the most recent fetch_timestamp
+        query = f"""
+            SELECT
+                fetch_timestamp,
+                COUNT(*) OVER (PARTITION BY fetch_timestamp) AS row_count
+            FROM {TABLE_NAME}
+            ORDER BY fetch_timestamp DESC
+            LIMIT 1;
+        """
+
+        result = conn.execute(query).fetchdf()
+
+        if len(result) == 0:
+            return jsonify({"error": "No data found"}), 404
+
+        latest_data = result.iloc[0]
+
+        timestamps = {
+            "fetch_timestamp": str(latest_data["fetch_timestamp"]),
+            "row_count": str(latest_data["row_count"]),
+        }
+
+        return jsonify(timestamps)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
 @app.route("/api/stats-by-line")
 def get_stats_by_line():
     """Get delay statistics by train line, split by direction."""
@@ -143,12 +179,12 @@ def get_stats_by_line():
             # Convert timestamp to string if needed
             dep_time_str = str(dep_time)
             time_part = dep_time_str.split(" ")[1].split(":")[:2]  # Get HH:MM
-            
+
             # Determine direction
             departure = row["departure_station_name"]
             arrival = row["arrival_station_name"]
             direction = f"{departure} → {arrival}"
-            
+
             line_key = f"{row['train_line_name']} {row['train_number']} ({':'.join(time_part)}) - {direction}"
 
             # Calculate arrival delay
@@ -156,17 +192,13 @@ def get_stats_by_line():
 
             if delay is not None:
                 if line_key not in line_stats:
-                    line_stats[line_key] = {
-                        'delays': [],
-                        'direction': direction,
-                        'departure_time': ':'.join(time_part)
-                    }
-                line_stats[line_key]['delays'].append(delay)
+                    line_stats[line_key] = {"delays": [], "direction": direction, "departure_time": ":".join(time_part)}
+                line_stats[line_key]["delays"].append(delay)
 
         # Calculate statistics for each line
         stats_by_line = []
         for line_key, data in line_stats.items():
-            delays = data['delays']
+            delays = data["delays"]
             total = len(delays)
             on_time = sum(1 for d in delays if d <= 0)
             delay_5min = sum(1 for d in delays if 0 < d <= 5)
@@ -179,8 +211,8 @@ def get_stats_by_line():
             stats_by_line.append(
                 {
                     "line": line_key,
-                    "direction": data['direction'],
-                    "departure_time": data['departure_time'],
+                    "direction": data["direction"],
+                    "departure_time": data["departure_time"],
                     "total_trains": total,
                     "on_time": on_time,
                     "on_time_percentage": (on_time / total * 100) if total > 0 else 0,
@@ -210,4 +242,3 @@ def get_stats_by_line():
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
-
