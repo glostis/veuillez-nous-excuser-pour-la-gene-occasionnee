@@ -1,61 +1,17 @@
-# TER HDF - Train Schedule Fetcher
+# Veuillez nous excuser pour la gêne occasionnée
 
-## Docker Deployment
+This repo hosts the code that powers the website [ter.glost.is](https://ter.glost.is), which aggregates information about the punctuality of TER trains between Paris and Compiègne.
 
-This project is set up to run in a Docker container with a daily cron job.
+## Data Collection
 
-### Prerequisites
-- Docker
-- Docker Compose
+Data collection is done using the [SNCF API](https://www.digital.sncf.com/startup/api) which publishes real-time information about train schedules and delays.
 
-### Setup
+A python script is run daily to fetch the data from the previous day and store it in a DuckDB database.
 
-1. **Build and start the container:**
-   ```bash
-   docker-compose up -d --build
-   ```
+This script is launched in a Docker container and is scheduled to run daily using a cron job.
 
-2. **Check logs:**
-   ```bash
-   docker-compose logs -f fetch-schedules
-   ```
+A `.env` file containing an SNCF API key is required.
 
-3. **View cron logs:**
-   ```bash
-   tail -f logs/cron.log
-   ```
+## Data Analysis
 
-### Configuration
-
-- The script runs daily at 5:05 AM (Paris time)
-- Data is stored in the `data/` directory on your host machine
-- Logs are available in the `logs/` directory
-- The timezone is set to Europe/Paris
-
-### Environment Variables
-
-The `.env` file contains the SNCF API key. Make sure to keep this file secure.
-
-### Updating
-
-To update the container after making changes:
-```bash
-docker-compose down
-docker-compose up -d --build
-```
-
-### Manual Execution
-
-To run the script manually:
-```bash
-docker-compose exec fetch-schedules python fetch_and_store_route_schedules.py
-```
-
-## Original README
-
-This script fetches route schedules for trains between Compiègne and Paris Nord using the SNCF API and stores the data in DuckDB.
-
-The script focuses on:
-1. Fetching route schedules from the API
-2. Filtering to keep only routes passing through Paris and Compiègne
-3. Storing raw data in DuckDB with one row per train trip
+The data is presented in an aggregated form on a website using a Flask app.
