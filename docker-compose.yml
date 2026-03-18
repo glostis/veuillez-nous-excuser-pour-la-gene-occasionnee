@@ -22,8 +22,8 @@ services:
       - TZ=Europe/Paris
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.sncf.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.services.sncf.loadbalancer.server.port=5000"
-      - "traefik.http.routers.sncf.entrypoints=websecure"
-      - "traefik.http.routers.sncf.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.sncf.tls=true"
+      - "traefik.http.routers.ter.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.services.ter.loadbalancer.server.port=5000"
+      - "traefik.http.routers.ter.entrypoints=websecure"
+      - "traefik.http.routers.ter.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.ter.tls=true"
