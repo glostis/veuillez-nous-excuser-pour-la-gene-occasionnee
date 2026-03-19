@@ -123,9 +123,15 @@ def get_stats():
                 arr_time_str = str(arr_time)
                 arr_time_part = arr_time_str.split(" ")[1].split(":")[:2]  # Get HH:MM
 
-                scheduled_duration = (int(arr_time_part[0]) * 60 + int(arr_time_part[1])) - (
-                    int(time_part[0]) * 60 + int(time_part[1])
-                )
+                # Calculate scheduled duration properly handling midnight crossing
+                dep_minutes = int(time_part[0]) * 60 + int(time_part[1])
+                arr_minutes = int(arr_time_part[0]) * 60 + int(arr_time_part[1])
+
+                # If arrival time is earlier than departure time, it spans midnight
+                if arr_minutes < dep_minutes:
+                    scheduled_duration = (24 * 60 - dep_minutes) + arr_minutes
+                else:
+                    scheduled_duration = arr_minutes - dep_minutes
 
                 # Determine direction
                 departure = row["departure_station_name"]

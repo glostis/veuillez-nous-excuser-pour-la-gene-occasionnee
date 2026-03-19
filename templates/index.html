@@ -279,7 +279,7 @@
           }
 
           html += `<tr>
-                      <td>${stat.line}</td>
+                      <td>${stat.line.split(' ')[0]}</td>
                       <td>${timeDisplay}</td>
                       <td>${stat.average_delay_minutes.toFixed(1)} min</td>
                       <td>${stat.total_trains}</td>
