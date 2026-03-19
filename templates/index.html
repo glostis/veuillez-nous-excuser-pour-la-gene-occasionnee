@@ -203,7 +203,7 @@
     </div>
 
     <div id="stats"></div>
-    <div id="line-stats"></div>
+    <div id="line-stats" style="margin-top: 40px;"></div>
     <div
       id="timestamp"
       style="margin-top: 20px; font-size: 14px; color: var(--color-text)"
@@ -247,6 +247,12 @@
       html += '<div style="margin-top: 20px; width: fit-content;">';
       html += '<h4>Répartition des retards</h4>';
       html += generateGlobalChartHTML(stats);
+      html += '</div>';
+
+      // Add timeline chart placeholder
+      html += '<div style="margin-top: 30px;">';
+      html += '<h4>Évolution des retards dans le temps</h4>';
+      html += '<div id="timeline-chart" style="margin-top: 10px;"></div>';
       html += '</div>';
 
           document.getElementById("stats").innerHTML = html;
@@ -497,10 +503,143 @@
         }
       }
 
+      async function loadTimeline() {
+        try {
+          const response = await fetch("/api/timeline");
+          const timelineData = await response.json();
+
+          if (timelineData.length === 0) {
+            document.getElementById("timeline-chart").innerHTML = "<p>Aucune donnée disponible pour le timeline.</p>";
+            return;
+          }
+
+          // Determine time unit based on timespan
+          const startDate = new Date(timelineData[0].date);
+          const endDate = new Date(timelineData[timelineData.length - 1].date);
+          const daysSpan = (endDate - startDate) / (1000 * 60 * 60 * 24);
+          const useWeekly = daysSpan > 30; // Use weekly if span > 1 month
+
+          // Group data by time unit
+          const groupedData = {};
+          timelineData.forEach(entry => {
+            const date = new Date(entry.date);
+            let groupKey;
+
+            if (useWeekly) {
+              // Group by week (YYYY-WW)
+              const year = date.getFullYear();
+              const week = Math.floor((date.getTime() - new Date(year, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+              groupKey = `${year}-W${week.toString().padStart(2, '0')}`;
+            } else {
+              // Group by day (YYYY-MM-DD)
+              groupKey = entry.date;
+            }
+
+            if (!groupedData[groupKey]) {
+              groupedData[groupKey] = {
+                date: groupKey,
+                total_trains: 0,
+                on_time: 0,
+                delay_5min: 0,
+                delay_15min: 0,
+                delay_45min: 0,
+                delay_over_45min: 0
+              };
+            }
+
+            // Sum up the counts
+            groupedData[groupKey].total_trains += entry.total_trains;
+            groupedData[groupKey].on_time += entry.on_time;
+            groupedData[groupKey].delay_5min += entry.delay_5min;
+            groupedData[groupKey].delay_15min += entry.delay_15min;
+            groupedData[groupKey].delay_45min += entry.delay_45min;
+            groupedData[groupKey].delay_over_45min += entry.delay_over_45min;
+          });
+
+          // Convert to array and sort
+          const groupedArray = Object.values(groupedData);
+          groupedArray.sort((a, b) => a.date.localeCompare(b.date));
+
+          // Generate HTML for timeline chart
+          let html = '<div style="display: flex; overflow-x: auto; gap: 5px; margin-bottom: 10px;">';
+
+          groupedArray.forEach(period => {
+            const total = period.total_trains;
+            if (total === 0) return;
+
+            // Format date label
+            let dateLabel;
+            if (useWeekly) {
+              const [year, week] = period.date.split('-W');
+              dateLabel = `S${week}`;
+            } else {
+              const dateParts = period.date.split('-');
+              dateLabel = `${dateParts[2]}/${dateParts[1]}`;
+            }
+
+            html += '<div style="min-width: 40px; text-align: center;">';
+
+            // Vertical stacked bar chart (reversed direction)
+            html += '<div style="width: 30px; height: 100px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden; margin: 0 auto;">';
+
+            // Calculate heights for each segment
+            const segmentHeight = 100 / total;
+
+            // On time (bottom segment - reversed)
+            if (period.on_time > 0) {
+              const height = period.on_time * segmentHeight;
+              html += `<div data-chart-segment="on-time" style="width: 100%; height: ${height}px; position: absolute; bottom: 0;" title="À l'heure: ${period.on_time}"></div>`;
+            }
+
+            // 0-5 min
+            if (period.delay_5min > 0) {
+              const height = period.delay_5min * segmentHeight;
+              const bottom = period.on_time * segmentHeight;
+              html += `<div data-chart-segment="delay-5min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="≤5 min: ${period.delay_5min}"></div>`;
+            }
+
+            // 5-15 min
+            if (period.delay_15min > 0) {
+              const height = period.delay_15min * segmentHeight;
+              const bottom = (period.on_time + period.delay_5min) * segmentHeight;
+              html += `<div data-chart-segment="delay-15min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="≤15 min: ${period.delay_15min}"></div>`;
+            }
+
+            // 15-45 min
+            if (period.delay_45min > 0) {
+              const height = period.delay_45min * segmentHeight;
+              const bottom = (period.on_time + period.delay_5min + period.delay_15min) * segmentHeight;
+              html += `<div data-chart-segment="delay-45min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="≤45 min: ${period.delay_45min}"></div>`;
+            }
+
+            // Over 45 min (top segment - reversed)
+            if (period.delay_over_45min > 0) {
+              const height = period.delay_over_45min * segmentHeight;
+              const bottom = (period.on_time + period.delay_5min + period.delay_15min + period.delay_45min) * segmentHeight;
+              html += `<div data-chart-segment="delay-over-45min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title=">45 min: ${period.delay_over_45min}"></div>`;
+            }
+
+            html += '</div>';
+            html += `<div style="font-size: 10px; margin-top: 2px;">${dateLabel}</div>`;
+            html += '</div>';
+          });
+
+          html += '</div>';
+          html += generateChartLegendHTML();
+
+          document.getElementById("timeline-chart").innerHTML = html;
+
+        } catch (error) {
+          console.error("Erreur lors du chargement du timeline:", error);
+          document.getElementById("timeline-chart").innerHTML = "<p>Erreur lors du chargement du timeline.</p>";
+        }
+      }
+
       window.onload = function () {
         loadStats();
         loadLineStats();
         loadTimestamp();
+        loadTimeline();
 
         checkDarkReader();
 

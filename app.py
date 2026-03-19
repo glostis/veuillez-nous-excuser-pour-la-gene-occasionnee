@@ -214,6 +214,85 @@ def get_stats():
         conn.close()
 
 
+@app.route("/api/timeline")
+def get_timeline():
+    """Get timeline data for delay distribution over time."""
+    conn = get_db_connection()
+
+    try:
+        # Get all records with timestamps
+        query = f"""
+        SELECT
+            scheduled_departure_time,
+            scheduled_arrival_time,
+            real_arrival_time
+        FROM {TABLE_NAME}
+        ORDER BY scheduled_departure_time ASC
+        """
+
+        results = conn.execute(query).fetchdf()
+
+        if len(results) == 0:
+            return jsonify({"error": "No data found"}), 404
+
+        # Calculate delays and group by departure date (not arrival date)
+        timeline_data = {}
+
+        for _, row in results.iterrows():
+            scheduled_dep = row["scheduled_departure_time"]
+            scheduled_arr = row["scheduled_arrival_time"]
+            real_arr = row["real_arrival_time"]
+
+            if scheduled_dep and scheduled_arr and real_arr:
+                try:
+                    scheduled_dep_dt = datetime.fromisoformat(str(scheduled_dep))
+                    scheduled_arr_dt = datetime.fromisoformat(str(scheduled_arr))
+                    real_arr_dt = datetime.fromisoformat(str(real_arr))
+                    delay_minutes = (real_arr_dt - scheduled_arr_dt).total_seconds() / 60
+
+                    # Group by departure date (YYYY-MM-DD) - trips are counted on the day they started
+                    date_key = scheduled_dep_dt.strftime("%Y-%m-%d")
+
+                    if date_key not in timeline_data:
+                        timeline_data[date_key] = {
+                            "date": date_key,
+                            "delays": []
+                        }
+                    timeline_data[date_key]["delays"].append(delay_minutes)
+
+                except Exception as e:
+                    print(f"Error processing timeline data: {e}")
+                    continue
+
+        # Convert to list and sort by date
+        timeline_list = list(timeline_data.values())
+        timeline_list.sort(key=lambda x: x["date"])
+
+        # Calculate statistics for each time period
+        timeline_stats = []
+        for period in timeline_list:
+            delays = period["delays"]
+            stats = calculate_delay_statistics(delays)
+
+            timeline_stats.append({
+                "date": period["date"],
+                "total_trains": stats["total_trains"],
+                "on_time": stats["on_time"],
+                "delay_5min": stats["delay_5min"],
+                "delay_15min": stats["delay_15min"],
+                "delay_45min": stats["delay_45min"],
+                "delay_over_45min": stats["delay_over_45min"]
+            })
+
+        return jsonify(timeline_stats)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
 @app.route("/api/latest-timestamp")
 def get_latest_timestamp():
     """Get the latest fetch timestamp and corresponding number of train schedules."""
