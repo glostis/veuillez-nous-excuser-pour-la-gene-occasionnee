@@ -190,12 +190,19 @@
           const timestamp = await response.json();
 
           let html =
-            "<p><strong>Dernière mise à jour des données :</strong> " +
+            "<p><strong>Dernière mise à jour des données :</strong> le " +
             timestamp.fetch_timestamp +
-            " (" +
+            " — " +
             timestamp.row_count +
-            " lignes ajoutées)" +
+            " trajets récupérés pour la journée du " +
+            timestamp.data_date +
             "</p>";
+
+          if (timestamp.is_outdated) {
+            document.getElementById("timestamp").style.color = "red";
+          } else {
+            document.getElementById("timestamp").style.color = "#666";
+          }
 
           document.getElementById("timestamp").innerHTML = html;
         } catch (error) {
@@ -206,7 +213,6 @@
         }
       }
 
-      // Charger les données au chargement de la page
       window.onload = function () {
         loadStats();
         loadLineStats();

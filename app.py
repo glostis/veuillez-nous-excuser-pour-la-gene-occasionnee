@@ -217,10 +217,28 @@ def get_latest_timestamp():
             return jsonify({"error": "No data found"}), 404
 
         latest_data = result.iloc[0]
+        fetch_timestamp = latest_data["fetch_timestamp"]
+        row_count = latest_data["row_count"]
+
+        # Check if data is outdated (older than 24 hours)
+        from datetime import timedelta
+
+        current_time = datetime.now(fetch_timestamp.tzinfo) if fetch_timestamp.tzinfo else datetime.now()
+        time_diff = current_time - fetch_timestamp
+        is_outdated = time_diff > timedelta(hours=24)
+
+        # Format the timestamp for display
+        formatted_timestamp = fetch_timestamp.strftime("%d/%m/%Y à %Hh%M (heure de Compiègne)")
+
+        # Get the date for which data was collected (subtract one day from fetch timestamp)
+        data_date = fetch_timestamp.date() - timedelta(days=1)
+        formatted_data_date = data_date.strftime("%d/%m/%Y")
 
         timestamps = {
-            "fetch_timestamp": str(latest_data["fetch_timestamp"]),
-            "row_count": str(latest_data["row_count"]),
+            "fetch_timestamp": formatted_timestamp,
+            "row_count": str(row_count),
+            "data_date": formatted_data_date,
+            "is_outdated": is_outdated,
         }
 
         return jsonify(timestamps)
