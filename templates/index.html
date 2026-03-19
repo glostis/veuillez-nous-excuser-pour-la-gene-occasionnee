@@ -140,7 +140,7 @@
 
           compiegneToParis.forEach((stat) => {
             html += `<tr>
-                        <td>${stat.line.split(" - ")[0]}</td>
+                        <td>${stat.line}</td>
                         <td>${stat.departure_time}</td>
                         <td>${stat.total_trains}</td>
                         <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
@@ -162,7 +162,7 @@
 
           parisToCompiegne.forEach((stat) => {
             html += `<tr>
-                        <td>${stat.line.split(" - ")[0]}</td>
+                        <td>${stat.line}</td>
                         <td>${stat.departure_time}</td>
                         <td>${stat.total_trains}</td>
                         <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>

@@ -123,7 +123,7 @@ def get_stats():
                 arrival = row["arrival_station_name"]
                 direction = f"{departure} → {arrival}"
 
-                line_key = f"{row['train_line_name']} {row['train_number']} ({':'.join(time_part)}) - {direction}"
+                line_key = f"{row['train_line_name']} {row['train_number']}"
 
                 # Calculate arrival delay
                 delay = calculate_delay_minutes(row["scheduled_arrival_time"], row["real_arrival_time"])
