@@ -54,7 +54,121 @@
       .ter-logo {
         height: 60px;
       }
-
+      
+      /* Theme system */
+      :root {
+        --color-background: #ffffff;
+        --color-text: #333333;
+        --color-border: #dddddd;
+        --color-stat-box-bg: #f9f9f9;
+        --color-table-header: #f2f2f2;
+        --color-table-even: #f9f9f9;
+        
+        --chart-color-on-time: #4CAF50;
+        --chart-color-delay-5min: #8BC34A;
+        --chart-color-delay-15min: #FFEB3B;
+        --chart-color-delay-45min: #FF9800;
+        --chart-color-delay-over-45min: #F44336;
+      }
+      
+      .dark-theme {
+        --color-background: #1a1a1a;
+        --color-text: #e0e0e0;
+        --color-border: #333333;
+        --color-stat-box-bg: #2d2d2d;
+        --color-table-header: #252525;
+        --color-table-even: #2d2d2d;
+        
+        --chart-color-on-time: #66BB6A;
+        --chart-color-delay-5min: #9CCC65;
+        --chart-color-delay-15min: #FFEE58;
+        --chart-color-delay-45min: #FFB74D;
+        --chart-color-delay-over-45min: #EF9A9A;
+      }
+      
+      body {
+        background-color: var(--color-background);
+        color: var(--color-text);
+        transition: background-color 0.3s, color 0.3s;
+      }
+      
+      .stat-box {
+        border-color: var(--color-border);
+        background-color: var(--color-stat-box-bg);
+      }
+      
+      th {
+        background-color: var(--color-table-header);
+        color: var(--color-text);
+      }
+      
+      tr:nth-child(even) {
+        background-color: var(--color-table-even);
+      }
+      
+      table {
+        border-color: var(--color-border);
+      }
+      
+      th, td {
+        border-color: var(--color-border);
+        color: var(--color-text);
+      }
+      
+      /* Chart colors - these will be protected from Dark Reader */
+      [data-chart-segment="on-time"] {
+        background-color: var(--chart-color-on-time) !important;
+      }
+      [data-chart-segment="delay-5min"] {
+        background-color: var(--chart-color-delay-5min) !important;
+      }
+      [data-chart-segment="delay-15min"] {
+        background-color: var(--chart-color-delay-15min) !important;
+      }
+      [data-chart-segment="delay-45min"] {
+        background-color: var(--chart-color-delay-45min) !important;
+      }
+      [data-chart-segment="delay-over-45min"] {
+        background-color: var(--chart-color-delay-over-45min) !important;
+      }
+      
+      /* Legend colors */
+      .chart-legend span {
+        color: var(--color-text) !important;
+      }
+      
+      /* Theme toggle button */
+      .theme-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background-color: var(--color-stat-box-bg);
+        border: 1px solid var(--color-border);
+        color: var(--color-text);
+        padding: 8px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      
+      .theme-toggle:hover {
+        opacity: 0.8;
+      }
+      
+      /* Dark Reader detection message */
+      .dark-reader-warning {
+        background-color: #FFCDD2;
+        color: #C62828;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        display: none;
+      }
+      
+      .dark-reader-warning.show {
+        display: block;
+      }
     </style>
   </head>
   <body>
@@ -71,11 +185,19 @@
       </div>
     </div>
 
+    <div class="dark-reader-warning" id="dark-reader-warning">
+      <strong>⚠️ Dark Reader détecté :</strong> Cette page a son propre thème sombre intégré. 
+      Pour une meilleure expérience, nous vous recommandons de désactiver Dark Reader pour ce site. 
+      <button id="disable-dark-reader-btn" style="margin-left: 10px; padding: 5px 10px; background: #C62828; color: white; border: none; border-radius: 3px; cursor: pointer;">Désactiver Dark Reader</button>
+    </div>
+
+    <button class="theme-toggle" id="theme-toggle">🌙 Thème sombre</button>
+
     <div id="stats"></div>
     <div id="line-stats"></div>
     <div
       id="timestamp"
-      style="margin-top: 20px; font-size: 14px; color: #666"
+      style="margin-top: 20px; font-size: 14px; color: var(--color-text)"
     ></div>
 
     <script>
@@ -158,36 +280,36 @@
         const total = stat.total_trains;
         if (total === 0) return '';
         
-        let html = '<div style="width: 150px; height: 15px; position: relative; border: 1px solid #eee; border-radius: 3px; overflow: hidden;">';
+        let html = '<div style="width: 150px; height: 15px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden;">';
         
         // On time segment
         if (stat.on_time > 0) {
             const width = (stat.on_time / total * 100).toFixed(1);
-            html += `<div style="width: ${width}%; height: 100%; background-color: #4CAF50; float: left;" title="À l'heure: ${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)"></div>`;
+            html += `<div data-chart-segment="on-time" style="width: ${width}%; height: 100%; float: left;" title="À l'heure: ${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)"></div>`;
         }
         
         // 0-5 min delay segment
         if (stat.delay_5min > 0) {
             const width = (stat.delay_5min / total * 100).toFixed(1);
-            html += `<div style="width: ${width}%; height: 100%; background-color: #8BC34A; float: left;" title="≤5 min: ${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)"></div>`;
+            html += `<div data-chart-segment="delay-5min" style="width: ${width}%; height: 100%; float: left;" title="≤5 min: ${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)"></div>`;
         }
         
         // 5-15 min delay segment
         if (stat.delay_15min > 0) {
             const width = (stat.delay_15min / total * 100).toFixed(1);
-            html += `<div style="width: ${width}%; height: 100%; background-color: #FFEB3B; float: left;" title="≤15 min: ${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)"></div>`;
+            html += `<div data-chart-segment="delay-15min" style="width: ${width}%; height: 100%; float: left;" title="≤15 min: ${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)"></div>`;
         }
         
         // 15-45 min delay segment
         if (stat.delay_45min > 0) {
             const width = (stat.delay_45min / total * 100).toFixed(1);
-            html += `<div style="width: ${width}%; height: 100%; background-color: #FF9800; float: left;" title="≤45 min: ${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)"></div>`;
+            html += `<div data-chart-segment="delay-45min" style="width: ${width}%; height: 100%; float: left;" title="≤45 min: ${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)"></div>`;
         }
         
         // Over 45 min delay segment
         if (stat.delay_over_45min > 0) {
             const width = (stat.delay_over_45min / total * 100).toFixed(1);
-            html += `<div style="width: ${width}%; height: 100%; background-color: #F44336; float: left;" title=">45 min: ${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)"></div>`;
+            html += `<div data-chart-segment="delay-over-45min" style="width: ${width}%; height: 100%; float: left;" title=">45 min: ${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)"></div>`;
         }
         
         html += '</div>';
@@ -252,10 +374,87 @@
         }
       }
 
+      // Dark Reader detection
+      function detectDarkReader() {
+        // Check for Dark Reader specific elements or styles
+        const styleSheets = document.styleSheets;
+        for (let i = 0; i < styleSheets.length; i++) {
+          try {
+            const rules = styleSheets[i].cssRules;
+            for (let j = 0; j < rules.length; j++) {
+              if (rules[j].cssText && rules[j].cssText.includes('darkreader')) {
+                return true;
+              }
+            }
+          } catch (e) {
+            // Cross-origin stylesheets will throw security errors
+            continue;
+          }
+        }
+        
+        // Check for Dark Reader HTML attributes
+        return document.documentElement.hasAttribute('data-darkreader-scheme') || 
+               document.documentElement.hasAttribute('data-darkreader-mode');
+      }
+
+      // Theme management
+      function applyTheme(theme) {
+        if (theme === 'dark') {
+          document.body.classList.add('dark-theme');
+          document.getElementById('theme-toggle').textContent = '☀️ Thème clair';
+          localStorage.setItem('theme', 'dark');
+        } else {
+          document.body.classList.remove('dark-theme');
+          document.getElementById('theme-toggle').textContent = '🌙 Thème sombre';
+          localStorage.setItem('theme', 'light');
+        }
+      }
+
+      // Toggle theme
+      function toggleTheme() {
+        const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
+        applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+      }
+
+      // Check for Dark Reader and show warning
+      function checkDarkReader() {
+        if (detectDarkReader()) {
+          document.getElementById('dark-reader-warning').classList.add('show');
+          
+          // Add event listener to disable Dark Reader button
+          document.getElementById('disable-dark-reader-btn').addEventListener('click', function() {
+            alert('Pour désactiver Dark Reader pour ce site:\n1. Cliquez sur l\'icône Dark Reader dans votre barre d\'outils\n2. Sélectionnez "Désactiver pour ce site"\n3. Actualisez la page');
+          });
+        }
+      }
+
       window.onload = function () {
         loadStats();
         loadLineStats();
         loadTimestamp();
+        
+        // Initialize theme
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme) {
+          applyTheme(savedTheme);
+        } else if (prefersDark) {
+          applyTheme('dark');
+        }
+        
+        // Set up theme toggle button
+        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+        
+        // Check for Dark Reader
+        checkDarkReader();
+        
+        // Watch for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          if (!localStorage.getItem('theme')) {
+            applyTheme(e.matches ? 'dark' : 'light');
+          }
+        });
       };
     </script>
   </body>
