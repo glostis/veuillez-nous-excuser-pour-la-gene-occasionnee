@@ -31,13 +31,15 @@
       }
       table {
         border-collapse: collapse;
-        width: 100%;
+        width: auto;
+        table-layout: auto;
       }
       th,
       td {
         border: 1px solid #ddd;
-        padding: 8px;
+        padding: 6px 8px;
         text-align: left;
+        white-space: nowrap;
       }
       th {
         background-color: #f2f2f2;
@@ -225,7 +227,7 @@
         let html = `<h3>${title}</h3>`;
         html += "<table>";
         html +=
-          "<tr><th>Ligne</th><th>Horaire</th><th>Retard moyen (min)</th><th>Trajets</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retards</th></tr>";
+          "<tr><th>Ligne</th><th>Horaire</th><th>Retard moyen</th><th>Trajets</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retards</th></tr>";
 
         stats.forEach((stat) => {
           // Format the time range: HH:MM - HH:MM (duration min or hhmm)
@@ -234,7 +236,7 @@
             // Format duration: XXmin if < 60, XXhYY otherwise
             let durationDisplay;
             if (stat.scheduled_duration < 60) {
-              durationDisplay = `${stat.scheduled_duration}min`;
+              durationDisplay = `${stat.scheduled_duration} min`;
             } else {
               const hours = Math.floor(stat.scheduled_duration / 60);
               const minutes = stat.scheduled_duration % 60;
@@ -248,7 +250,7 @@
           html += `<tr>
                       <td>${stat.line}</td>
                       <td>${timeDisplay}</td>
-                      <td>${stat.average_delay_minutes.toFixed(1)}</td>
+                      <td>${stat.average_delay_minutes.toFixed(1)} min</td>
                       <td>${stat.total_trains}</td>
                       <td>${stat.on_time_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_5min_percentage.toFixed(1)}%</td>
