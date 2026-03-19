@@ -519,25 +519,33 @@
           const daysSpan = (endDate - startDate) / (1000 * 60 * 60 * 24);
           const useWeekly = daysSpan > 30; // Use weekly if span > 1 month
 
-          // Group data by time unit
+          // Group data by time unit - simplified logic
           const groupedData = {};
           timelineData.forEach(entry => {
             const date = new Date(entry.date);
             let groupKey;
 
             if (useWeekly) {
-              // Group by week (YYYY-WW)
-              const year = date.getFullYear();
-              const week = Math.floor((date.getTime() - new Date(year, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-              groupKey = `${year}-W${week.toString().padStart(2, '0')}`;
+              // Find the Monday of the current week
+              const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+              const daysToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1); // Days back to Monday
+              const monday = new Date(date);
+              monday.setDate(date.getDate() - daysToMonday);
+
+              // Use Monday's date as the group key (YYYY-MM-DD)
+              groupKey = monday.toISOString().split('T')[0];
             } else {
               // Group by day (YYYY-MM-DD)
               groupKey = entry.date;
             }
 
             if (!groupedData[groupKey]) {
+              // For weekly grouping, we'll fix the label later
+              const displayDate = useWeekly ? new Date(groupKey) : new Date(entry.date);
+              const displayKey = useWeekly ? groupKey : entry.date;
+
               groupedData[groupKey] = {
-                date: groupKey,
+                date: displayKey,
                 total_trains: 0,
                 on_time: 0,
                 delay_5min: 0,
@@ -570,14 +578,32 @@
             // Format date label
             let dateLabel;
             if (useWeekly) {
-              const [year, week] = period.date.split('-W');
-              dateLabel = `S${week}`;
+              const monday = new Date(period.date);
+              const sunday = new Date(monday);
+              sunday.setDate(monday.getDate() + 6); // 6 days after Monday = Sunday
+
+              const startDay = monday.getDate();
+              const endDay = sunday.getDate();
+              const startMonth = monday.getMonth() + 1;
+              const endMonth = sunday.getMonth() + 1;
+
+              // Handle month transitions
+              if (startMonth === endMonth) {
+                // Same month - format as "start-end/month"
+                dateLabel = `${startDay}-${endDay}/${startMonth.toString().padStart(2, '0')}`;
+              } else {
+                // Month transition - format as "start/month-end/month"
+                dateLabel = `${startDay}/${startMonth.toString().padStart(2, '0')}-${endDay}/${endMonth.toString().padStart(2, '0')}`;
+              }
             } else {
               const dateParts = period.date.split('-');
-              dateLabel = `${dateParts[2]}/${dateParts[1]}`;
+              dateLabel = `${dateParts[2]}/${dateParts[1].padStart(2, '0')}`;
             }
 
             html += '<div style="min-width: 40px; text-align: center;">';
+
+            // Show total number of trips at the top
+            html += `<div style="font-size: 10px; margin-bottom: 2px;">${total}</div>`;
 
             // Vertical stacked bar chart (reversed direction)
             html += '<div style="width: 30px; height: 100px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden; margin: 0 auto;">';
