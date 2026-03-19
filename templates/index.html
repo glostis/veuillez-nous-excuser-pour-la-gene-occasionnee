@@ -12,6 +12,7 @@
         display: flex;
         gap: 20px;
         margin-bottom: 30px;
+        width: fit-content;
       }
       .stat-box {
         border: 1px solid #ddd;
@@ -243,7 +244,7 @@
           html += "</div>";
 
       // Add horizontal stacked bar chart for global statistics
-      html += '<div style="margin-top: 20px;">';
+      html += '<div style="margin-top: 20px; width: fit-content;">';
       html += '<h4>Répartition des retards</h4>';
       html += generateGlobalChartHTML(stats);
       html += '</div>';
