@@ -137,24 +137,7 @@
         color: var(--color-text) !important;
       }
       
-      /* Theme toggle button */
-      .theme-toggle {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-        background-color: var(--color-stat-box-bg);
-        border: 1px solid var(--color-border);
-        color: var(--color-text);
-        padding: 8px 12px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: all 0.3s;
-      }
-      
-      .theme-toggle:hover {
-        opacity: 0.8;
-      }
+
       
       /* Dark Reader detection message */
       .dark-reader-warning {
@@ -186,12 +169,10 @@
     </div>
 
     <div class="dark-reader-warning" id="dark-reader-warning">
-      <strong>⚠️ Dark Reader détecté :</strong> Cette page a son propre thème sombre intégré. 
+      <strong>⚠️ Dark Reader détecté :</strong> Cette page suit automatiquement votre thème système. 
       Pour une meilleure expérience, nous vous recommandons de désactiver Dark Reader pour ce site. 
       <button id="disable-dark-reader-btn" style="margin-left: 10px; padding: 5px 10px; background: #C62828; color: white; border: none; border-radius: 3px; cursor: pointer;">Désactiver Dark Reader</button>
     </div>
-
-    <button class="theme-toggle" id="theme-toggle">🌙 Thème sombre</button>
 
     <div id="stats"></div>
     <div id="line-stats"></div>
@@ -374,47 +355,10 @@
         }
       }
 
-      // Simplified Dark Reader detection
       function detectDarkReader() {
         // Check for Dark Reader HTML attributes
         return document.documentElement.hasAttribute('data-darkreader-scheme') ||
                document.documentElement.hasAttribute('data-darkreader-mode');
-      }
-
-      // Theme management
-      function applyTheme(theme) {
-        if (theme === 'dark') {
-          document.body.classList.add('dark-theme');
-          document.getElementById('theme-toggle').textContent = '☀️ Thème clair';
-          localStorage.setItem('theme', 'dark');
-        } else if (theme === 'light') {
-          document.body.classList.remove('dark-theme');
-          document.getElementById('theme-toggle').textContent = '🌙 Thème sombre';
-          localStorage.setItem('theme', 'light');
-        } else { // system
-          document.body.classList.remove('dark-theme');
-          document.getElementById('theme-toggle').textContent = '💻 Thème système';
-          localStorage.removeItem('theme');
-          // Apply system preference immediately
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (prefersDark) {
-            document.body.classList.add('dark-theme');
-          }
-        }
-      }
-
-      // Toggle theme (cycle through light -> dark -> system)
-      function toggleTheme() {
-        const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
-        const savedTheme = localStorage.getItem('theme');
-        
-        if (savedTheme === 'dark') {
-          applyTheme('system');
-        } else if (savedTheme === 'light') {
-          applyTheme('dark');
-        } else {
-          applyTheme('light');
-        }
       }
 
       // Check for Dark Reader and show warning
@@ -422,38 +366,32 @@
         if (detectDarkReader()) {
           document.getElementById('dark-reader-warning').classList.add('show');
           
-          // Add event listener to disable Dark Reader button
           document.getElementById('disable-dark-reader-btn').addEventListener('click', function() {
             alert('Pour désactiver Dark Reader pour ce site:\n1. Cliquez sur l\'icône Dark Reader dans votre barre d\'outils\n2. Sélectionnez "Désactiver pour ce site"\n3. Actualisez la page');
           });
         }
       }
 
-      // Simple and reliable system theme change listener
       function setupSystemThemeListener() {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         
-        // Function to handle theme changes
         function handleThemeChange(e) {
-          if (!localStorage.getItem('theme')) {
-            // When in system mode, apply the system preference
-            if (e.matches) {
-              document.body.classList.add('dark-theme');
-            } else {
-              document.body.classList.remove('dark-theme');
-            }
+          if (e.matches) {
+            document.body.classList.add('dark-theme');
+          } else {
+            document.body.classList.remove('dark-theme');
           }
         }
+        
+        handleThemeChange(mediaQuery);
         
         // Use the modern addEventListener method which works in all current browsers
         if (mediaQuery.addEventListener) {
           mediaQuery.addEventListener('change', handleThemeChange);
         } else {
-          // Fallback for very old browsers (not really needed for current Firefox/Chrome)
+          // Fallback for very old browsers
           mediaQuery.addListener(handleThemeChange);
         }
-        
-        return mediaQuery;
       }
 
       window.onload = function () {
@@ -461,23 +399,8 @@
         loadLineStats();
         loadTimestamp();
         
-        // Initialize theme
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        if (savedTheme) {
-          applyTheme(savedTheme);
-        } else if (prefersDark) {
-          applyTheme('dark');
-        }
-        
-        // Set up theme toggle button
-        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-        
-        // Check for Dark Reader
         checkDarkReader();
         
-        // Set up system theme change listener
         setupSystemThemeListener();
       };
     </script>
