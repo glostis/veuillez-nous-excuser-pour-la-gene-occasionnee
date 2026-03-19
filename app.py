@@ -147,7 +147,6 @@ def get_stats():
                             "scheduled_duration": scheduled_duration,
                         }
                     line_stats[line_key]["delays"].append(delay)
-                    print(time_part, arr_time_part)
 
             # Calculate statistics for each line
             stats_by_line = []

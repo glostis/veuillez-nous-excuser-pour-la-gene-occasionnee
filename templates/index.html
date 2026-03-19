@@ -8,9 +8,6 @@
         font-family: Arial, sans-serif;
         margin: 20px;
       }
-      h1 {
-        color: #333;
-      }
       .stats-container {
         display: flex;
         gap: 20px;
@@ -56,7 +53,7 @@
       .ter-logo {
         height: 60px;
       }
-      
+
       /* Theme system */
       :root {
         --color-background: #ffffff;
@@ -65,14 +62,14 @@
         --color-stat-box-bg: #f9f9f9;
         --color-table-header: #f2f2f2;
         --color-table-even: #f9f9f9;
-        
+
         --chart-color-on-time: #4CAF50;
         --chart-color-delay-5min: #8BC34A;
         --chart-color-delay-15min: #FFEB3B;
         --chart-color-delay-45min: #FF9800;
         --chart-color-delay-over-45min: #F44336;
       }
-      
+
       .dark-theme {
         --color-background: #1a1a1a;
         --color-text: #e0e0e0;
@@ -80,43 +77,43 @@
         --color-stat-box-bg: #2d2d2d;
         --color-table-header: #252525;
         --color-table-even: #2d2d2d;
-        
+
         --chart-color-on-time: #66BB6A;
         --chart-color-delay-5min: #9CCC65;
         --chart-color-delay-15min: #FFEE58;
         --chart-color-delay-45min: #FFB74D;
         --chart-color-delay-over-45min: #EF9A9A;
       }
-      
+
       body {
         background-color: var(--color-background);
         color: var(--color-text);
         transition: background-color 0.3s, color 0.3s;
       }
-      
+
       .stat-box {
         border-color: var(--color-border);
         background-color: var(--color-stat-box-bg);
       }
-      
+
       th {
         background-color: var(--color-table-header);
         color: var(--color-text);
       }
-      
+
       tr:nth-child(even) {
         background-color: var(--color-table-even);
       }
-      
+
       table {
         border-color: var(--color-border);
       }
-      
+
       th, td {
         border-color: var(--color-border);
         color: var(--color-text);
       }
-      
+
       /* Chart colors */
       [data-chart-segment="on-time"] {
         background-color: var(--chart-color-on-time);
@@ -133,14 +130,42 @@
       [data-chart-segment="delay-over-45min"] {
         background-color: var(--chart-color-delay-over-45min);
       }
-      
+
       /* Legend colors */
       .chart-legend span {
         color: var(--color-text);
       }
-      
 
-      
+      .chart-legend .legend-color-box {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-right: 3px;
+        vertical-align: middle;
+      }
+
+      .chart-legend .legend-on-time {
+        background-color: var(--chart-color-on-time);
+      }
+
+      .chart-legend .legend-delay-5min {
+        background-color: var(--chart-color-delay-5min);
+      }
+
+      .chart-legend .legend-delay-15min {
+        background-color: var(--chart-color-delay-15min);
+      }
+
+      .chart-legend .legend-delay-45min {
+        background-color: var(--chart-color-delay-45min);
+      }
+
+      .chart-legend .legend-delay-over-45min {
+        background-color: var(--chart-color-delay-over-45min);
+      }
+
+
+
       /* Dark Reader detection message */
       .dark-reader-warning {
         background-color: #FFCDD2;
@@ -150,7 +175,7 @@
         margin-bottom: 20px;
         display: none;
       }
-      
+
       .dark-reader-warning.show {
         display: block;
       }
@@ -171,8 +196,8 @@
     </div>
 
     <div class="dark-reader-warning" id="dark-reader-warning">
-      <strong>⚠️ Dark Reader détecté :</strong> Cette page suit automatiquement votre thème système. 
-      Pour une meilleure expérience, nous vous recommandons de désactiver Dark Reader pour ce site. 
+      <strong>⚠️ Dark Reader détecté :</strong> Cette page suit automatiquement votre thème système.
+      Pour une meilleure expérience, nous vous recommandons de désactiver Dark Reader pour ce site.
       <button id="disable-dark-reader-btn" style="margin-left: 10px; padding: 5px 10px; background: #C62828; color: white; border: none; border-radius: 3px; cursor: pointer;">Désactiver Dark Reader</button>
     </div>
 
@@ -192,7 +217,7 @@
           let html = "<h2>Statistiques globales</h2>";
           html += '<div class="stats-container">';
           html += `<div class="stat-box">
-                    <h3>Total des trains</h3>
+                    <h3>Nombre de trajets</h3>
                     <div class="stat-value">${stats.total_trains}</div>
                 </div>`;
           html += `<div class="stat-box">
@@ -216,6 +241,12 @@
                     <div class="stat-value">${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)</div>
                 </div>`;
           html += "</div>";
+
+      // Add horizontal stacked bar chart for global statistics
+      html += '<div style="margin-top: 20px;">';
+      html += '<h4>Répartition des retards</h4>';
+      html += generateGlobalChartHTML(stats);
+      html += '</div>';
 
           document.getElementById("stats").innerHTML = html;
         } catch (error) {
@@ -246,7 +277,7 @@
           } else if (stat.arrival_time) {
             timeDisplay = `${stat.departure_time} - ${stat.arrival_time}`;
           }
-          
+
           html += `<tr>
                       <td>${stat.line}</td>
                       <td>${timeDisplay}</td>
@@ -262,56 +293,110 @@
         });
 
         html += "</table>";
-        
+
         // Add legend below the table
-        html += '<div class="chart-legend" style="margin-top: 10px; font-size: 12px;">';
-        html += '<strong>Légende:</strong> ';
-        html += '<span style="color: #4CAF50;">■ À l\'heure</span> | ';
-        html += '<span style="color: #8BC34A;">■ ≤5 min</span> | ';
-        html += '<span style="color: #FFEB3B;">■ ≤15 min</span> | ';
-        html += '<span style="color: #FF9800;">■ ≤45 min</span> | ';
-        html += '<span style="color: #F44336;">■ >45 min</span>';
+        html += generateChartLegendHTML();
+
+        return html;
+      }
+
+      function generateChartLegendHTML() {
+        return '<div class="chart-legend" style="margin-top: 10px; font-size: 12px;">' +
+               '<strong>Légende:</strong> ' +
+               '<span><span class="legend-color-box legend-on-time"></span>À l\'heure</span> | ' +
+               '<span><span class="legend-color-box legend-delay-5min"></span>≤5 min</span> | ' +
+               '<span><span class="legend-color-box legend-delay-15min"></span>≤15 min</span> | ' +
+               '<span><span class="legend-color-box legend-delay-45min"></span>≤45 min</span> | ' +
+               '<span><span class="legend-color-box legend-delay-over-45min"></span>>45 min</span>' +
+               '</div>';
+      }
+
+      function generateGlobalChartHTML(stats) {
+        const total = stats.total_trains;
+        if (total === 0) return '';
+
+        let html = '<div style="width: 100%; height: 30px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden; margin-bottom: 5px;">';
+
+        // On time segment
+        if (stats.on_time > 0) {
+            const width = (stats.on_time / total * 100).toFixed(1);
+            html += `<div data-chart-segment="on-time" style="width: ${width}%; height: 100%; float: left;" title="À l'heure: ${stats.on_time} (${stats.on_time_percentage.toFixed(1)}%)"></div>`;
+        }
+
+        // 0-5 min delay segment
+        if (stats.delay_5min > 0) {
+            const width = (stats.delay_5min / total * 100).toFixed(1);
+            html += `<div data-chart-segment="delay-5min" style="width: ${width}%; height: 100%; float: left;" title="≤5 min: ${stats.delay_5min} (${stats.delay_5min_percentage.toFixed(1)}%)"></div>`;
+        }
+
+        // 5-15 min delay segment
+        if (stats.delay_15min > 0) {
+            const width = (stats.delay_15min / total * 100).toFixed(1);
+            html += `<div data-chart-segment="delay-15min" style="width: ${width}%; height: 100%; float: left;" title="≤15 min: ${stats.delay_15min} (${stats.delay_15min_percentage.toFixed(1)}%)"></div>`;
+        }
+
+        // 15-45 min delay segment
+        if (stats.delay_45min > 0) {
+            const width = (stats.delay_45min / total * 100).toFixed(1);
+            html += `<div data-chart-segment="delay-45min" style="width: ${width}%; height: 100%; float: left;" title="≤45 min: ${stats.delay_45min} (${stats.delay_45min_percentage.toFixed(1)}%)"></div>`;
+        }
+
+        // Over 45 min delay segment
+        if (stats.delay_over_45min > 0) {
+            const width = (stats.delay_over_45min / total * 100).toFixed(1);
+            html += `<div data-chart-segment="delay-over-45min" style="width: ${width}%; height: 100%; float: left;" title=">45 min: ${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)"></div>`;
+        }
+
         html += '</div>';
-        
+
+        // Add labels below the chart
+        html += '<div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 5px;">';
+        html += '<span style="text-align: left;">À l\'heure</span>';
+        html += '<span style="text-align: right;">>45 min</span>';
+        html += '</div>';
+
+        // Add legend below the chart
+        html += generateChartLegendHTML();
+
         return html;
       }
 
       function generateInlineChartHTML(stat) {
         const total = stat.total_trains;
         if (total === 0) return '';
-        
+
         let html = '<div style="width: 150px; height: 15px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden;">';
-        
+
         // On time segment
         if (stat.on_time > 0) {
             const width = (stat.on_time / total * 100).toFixed(1);
             html += `<div data-chart-segment="on-time" style="width: ${width}%; height: 100%; float: left;" title="À l'heure: ${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)"></div>`;
         }
-        
+
         // 0-5 min delay segment
         if (stat.delay_5min > 0) {
             const width = (stat.delay_5min / total * 100).toFixed(1);
             html += `<div data-chart-segment="delay-5min" style="width: ${width}%; height: 100%; float: left;" title="≤5 min: ${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)"></div>`;
         }
-        
+
         // 5-15 min delay segment
         if (stat.delay_15min > 0) {
             const width = (stat.delay_15min / total * 100).toFixed(1);
             html += `<div data-chart-segment="delay-15min" style="width: ${width}%; height: 100%; float: left;" title="≤15 min: ${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)"></div>`;
         }
-        
+
         // 15-45 min delay segment
         if (stat.delay_45min > 0) {
             const width = (stat.delay_45min / total * 100).toFixed(1);
             html += `<div data-chart-segment="delay-45min" style="width: ${width}%; height: 100%; float: left;" title="≤45 min: ${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)"></div>`;
         }
-        
+
         // Over 45 min delay segment
         if (stat.delay_over_45min > 0) {
             const width = (stat.delay_over_45min / total * 100).toFixed(1);
             html += `<div data-chart-segment="delay-over-45min" style="width: ${width}%; height: 100%; float: left;" title=">45 min: ${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)"></div>`;
         }
-        
+
         html += '</div>';
         return html;
       }
@@ -321,7 +406,6 @@
           const response = await fetch("/api/stats?split_by_line=true");
           const lineStats = await response.json();
 
-          // Séparer les statistiques par direction
           const compiegneToParis = lineStats.filter(
             (stat) => stat.direction === "Compiègne → Paris Nord",
           );
@@ -331,10 +415,9 @@
 
           let html = "<h2>Statistiques par ligne</h2>";
 
-          // Générer les tableaux en utilisant la fonction commune
-          html += generateTableHTML(compiegneToParis, "Compiègne → Paris Nord");
+          html += generateTableHTML(compiegneToParis, "Compiègne vers Paris Nord");
           html += "<br>";
-          html += generateTableHTML(parisToCompiegne, "Paris Nord → Compiègne");
+          html += generateTableHTML(parisToCompiegne, "Paris Nord vers Compiègne");
 
           document.getElementById("line-stats").innerHTML = html;
         } catch (error) {
@@ -384,7 +467,7 @@
       function checkDarkReader() {
         if (detectDarkReader()) {
           document.getElementById('dark-reader-warning').classList.add('show');
-          
+
           document.getElementById('disable-dark-reader-btn').addEventListener('click', function() {
             alert('Pour désactiver Dark Reader pour ce site:\n1. Cliquez sur l\'icône Dark Reader dans votre barre d\'outils\n2. Sélectionnez "Désactiver pour ce site"\n3. Actualisez la page');
           });
@@ -393,7 +476,7 @@
 
       function setupSystemThemeListener() {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        
+
         function handleThemeChange(e) {
           if (e.matches) {
             document.body.classList.add('dark-theme');
@@ -401,9 +484,9 @@
             document.body.classList.remove('dark-theme');
           }
         }
-        
+
         handleThemeChange(mediaQuery);
-        
+
         // Use the modern addEventListener method which works in all current browsers
         if (mediaQuery.addEventListener) {
           mediaQuery.addEventListener('change', handleThemeChange);
@@ -417,9 +500,9 @@
         loadStats();
         loadLineStats();
         loadTimestamp();
-        
+
         checkDarkReader();
-        
+
         setupSystemThemeListener();
       };
     </script>
