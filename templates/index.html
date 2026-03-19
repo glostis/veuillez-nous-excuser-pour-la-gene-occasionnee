@@ -54,6 +54,7 @@
       .ter-logo {
         height: 60px;
       }
+
     </style>
   </head>
   <body>
@@ -117,6 +118,82 @@
         }
       }
 
+      function generateTableHTML(stats, title) {
+        let html = `<h3>${title}</h3>`;
+        html += "<table>";
+        html +=
+          "<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th><th>Visualisation</th></tr>";
+
+        stats.forEach((stat) => {
+          html += `<tr>
+                      <td>${stat.line}</td>
+                      <td>${stat.departure_time}</td>
+                      <td>${stat.total_trains}</td>
+                      <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
+                      <td>${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)</td>
+                      <td>${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)</td>
+                      <td>${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)</td>
+                      <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
+                      <td>${stat.average_delay_minutes.toFixed(1)} min</td>
+                      <td>${generateInlineChartHTML(stat)}</td>
+                  </tr>`;
+        });
+
+        html += "</table>";
+        
+        // Add legend below the table
+        html += '<div class="chart-legend" style="margin-top: 10px; font-size: 12px;">';
+        html += '<strong>Légende:</strong> ';
+        html += '<span style="color: #4CAF50;">■ À l\'heure</span> | ';
+        html += '<span style="color: #8BC34A;">■ ≤5 min</span> | ';
+        html += '<span style="color: #FFEB3B;">■ ≤15 min</span> | ';
+        html += '<span style="color: #FF9800;">■ ≤45 min</span> | ';
+        html += '<span style="color: #F44336;">■ >45 min</span>';
+        html += '</div>';
+        
+        return html;
+      }
+
+      function generateInlineChartHTML(stat) {
+        const total = stat.total_trains;
+        if (total === 0) return '';
+        
+        let html = '<div style="width: 150px; height: 15px; position: relative; border: 1px solid #eee; border-radius: 3px; overflow: hidden;">';
+        
+        // On time segment
+        if (stat.on_time > 0) {
+            const width = (stat.on_time / total * 100).toFixed(1);
+            html += `<div style="width: ${width}%; height: 100%; background-color: #4CAF50; float: left;" title="À l'heure: ${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)"></div>`;
+        }
+        
+        // 0-5 min delay segment
+        if (stat.delay_5min > 0) {
+            const width = (stat.delay_5min / total * 100).toFixed(1);
+            html += `<div style="width: ${width}%; height: 100%; background-color: #8BC34A; float: left;" title="≤5 min: ${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)"></div>`;
+        }
+        
+        // 5-15 min delay segment
+        if (stat.delay_15min > 0) {
+            const width = (stat.delay_15min / total * 100).toFixed(1);
+            html += `<div style="width: ${width}%; height: 100%; background-color: #FFEB3B; float: left;" title="≤15 min: ${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)"></div>`;
+        }
+        
+        // 15-45 min delay segment
+        if (stat.delay_45min > 0) {
+            const width = (stat.delay_45min / total * 100).toFixed(1);
+            html += `<div style="width: ${width}%; height: 100%; background-color: #FF9800; float: left;" title="≤45 min: ${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)"></div>`;
+        }
+        
+        // Over 45 min delay segment
+        if (stat.delay_over_45min > 0) {
+            const width = (stat.delay_over_45min / total * 100).toFixed(1);
+            html += `<div style="width: ${width}%; height: 100%; background-color: #F44336; float: left;" title=">45 min: ${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)"></div>`;
+        }
+        
+        html += '</div>';
+        return html;
+      }
+
       async function loadLineStats() {
         try {
           const response = await fetch("/api/stats?split_by_line=true");
@@ -132,49 +209,11 @@
 
           let html = "<h2>Statistiques par ligne de train</h2>";
 
-          // Tableau Compiègne vers Paris
-          html += "<h3>Compiègne → Paris Nord</h3>";
-          html += "<table>";
-          html +=
-            "<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>";
+          // Générer les tableaux en utilisant la fonction commune
+          html += generateTableHTML(compiegneToParis, "Compiègne → Paris Nord");
+          html += "<br>";
+          html += generateTableHTML(parisToCompiegne, "Paris Nord → Compiègne");
 
-          compiegneToParis.forEach((stat) => {
-            html += `<tr>
-                        <td>${stat.line}</td>
-                        <td>${stat.departure_time}</td>
-                        <td>${stat.total_trains}</td>
-                        <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.average_delay_minutes.toFixed(1)} min</td>
-                    </tr>`;
-          });
-
-          html += "</table><br>";
-
-          // Tableau Paris vers Compiègne
-          html += "<h3>Paris Nord → Compiègne</h3>";
-          html += "<table>";
-          html +=
-            "<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th></tr>";
-
-          parisToCompiegne.forEach((stat) => {
-            html += `<tr>
-                        <td>${stat.line}</td>
-                        <td>${stat.departure_time}</td>
-                        <td>${stat.total_trains}</td>
-                        <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
-                        <td>${stat.average_delay_minutes.toFixed(1)} min</td>
-                    </tr>`;
-          });
-
-          html += "</table>";
           document.getElementById("line-stats").innerHTML = html;
         } catch (error) {
           console.error(
