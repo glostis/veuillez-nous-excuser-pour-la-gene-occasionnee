@@ -118,6 +118,15 @@ def get_stats():
                 dep_time_str = str(dep_time)
                 time_part = dep_time_str.split(" ")[1].split(":")[:2]  # Get HH:MM
 
+                # Get arrival time as well
+                arr_time = row["scheduled_arrival_time"]
+                arr_time_str = str(arr_time)
+                arr_time_part = arr_time_str.split(" ")[1].split(":")[:2]  # Get HH:MM
+
+                scheduled_duration = (int(arr_time_part[0]) * 60 + int(arr_time_part[1])) - (
+                    int(time_part[0]) * 60 + int(time_part[1])
+                )
+
                 # Determine direction
                 departure = row["departure_station_name"]
                 arrival = row["arrival_station_name"]
@@ -134,8 +143,11 @@ def get_stats():
                             "delays": [],
                             "direction": direction,
                             "departure_time": ":".join(time_part),
+                            "arrival_time": ":".join(arr_time_part),
+                            "scheduled_duration": scheduled_duration,
                         }
                     line_stats[line_key]["delays"].append(delay)
+                    print(time_part, arr_time_part)
 
             # Calculate statistics for each line
             stats_by_line = []
@@ -149,6 +161,8 @@ def get_stats():
                         "line": line_key,
                         "direction": data["direction"],
                         "departure_time": data["departure_time"],
+                        "arrival_time": data.get("arrival_time", ""),
+                        "scheduled_duration": data.get("scheduled_duration", 0),
                         "average_delay_minutes": avg_delay,
                         **stats,
                     }

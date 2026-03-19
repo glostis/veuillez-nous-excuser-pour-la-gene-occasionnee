@@ -225,19 +225,36 @@
         let html = `<h3>${title}</h3>`;
         html += "<table>";
         html +=
-          "<tr><th>Ligne de train</th><th>Départ</th><th>Total</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retard moyen</th><th>Visualisation</th></tr>";
+          "<tr><th>Ligne</th><th>Horaire</th><th>Retard moyen (min)</th><th>Trajets</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retards</th></tr>";
 
         stats.forEach((stat) => {
+          // Format the time range: HH:MM - HH:MM (duration min or hhmm)
+          let timeDisplay = stat.departure_time;
+          if (stat.arrival_time && stat.scheduled_duration) {
+            // Format duration: XXmin if < 60, XXhYY otherwise
+            let durationDisplay;
+            if (stat.scheduled_duration < 60) {
+              durationDisplay = `${stat.scheduled_duration}min`;
+            } else {
+              const hours = Math.floor(stat.scheduled_duration / 60);
+              const minutes = stat.scheduled_duration % 60;
+              durationDisplay = `${hours}h${minutes.toString().padStart(2, '0')}`;
+            }
+            timeDisplay = `${stat.departure_time} - ${stat.arrival_time} (${durationDisplay})`;
+          } else if (stat.arrival_time) {
+            timeDisplay = `${stat.departure_time} - ${stat.arrival_time}`;
+          }
+          
           html += `<tr>
                       <td>${stat.line}</td>
-                      <td>${stat.departure_time}</td>
+                      <td>${timeDisplay}</td>
+                      <td>${stat.average_delay_minutes.toFixed(1)}</td>
                       <td>${stat.total_trains}</td>
-                      <td>${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)</td>
-                      <td>${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)</td>
-                      <td>${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)</td>
-                      <td>${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)</td>
-                      <td>${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)</td>
-                      <td>${stat.average_delay_minutes.toFixed(1)} min</td>
+                      <td>${stat.on_time_percentage.toFixed(1)}%</td>
+                      <td>${stat.delay_5min_percentage.toFixed(1)}%</td>
+                      <td>${stat.delay_15min_percentage.toFixed(1)}%</td>
+                      <td>${stat.delay_45min_percentage.toFixed(1)}%</td>
+                      <td>${stat.delay_over_45min_percentage.toFixed(1)}%</td>
                       <td>${generateInlineChartHTML(stat)}</td>
                   </tr>`;
         });
@@ -310,7 +327,7 @@
             (stat) => stat.direction === "Paris Nord → Compiègne",
           );
 
-          let html = "<h2>Statistiques par ligne de train</h2>";
+          let html = "<h2>Statistiques par ligne</h2>";
 
           // Générer les tableaux en utilisant la fonction commune
           html += generateTableHTML(compiegneToParis, "Compiègne → Paris Nord");
