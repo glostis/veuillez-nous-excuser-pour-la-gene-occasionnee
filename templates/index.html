@@ -761,12 +761,13 @@
 
       function buildUrlWithDates(url, startDate, endDate) {
         let urlWithParams = url;
+        const separator = url.includes('?') ? '&' : '?';
         if (startDate && endDate) {
-          urlWithParams += `?start_date=${startDate}&end_date=${endDate}`;
+          urlWithParams += `${separator}start_date=${startDate}&end_date=${endDate}`;
         } else if (startDate) {
-          urlWithParams += `?start_date=${startDate}`;
+          urlWithParams += `${separator}start_date=${startDate}`;
         } else if (endDate) {
-          urlWithParams += `?end_date=${endDate}`;
+          urlWithParams += `${separator}end_date=${endDate}`;
         }
         return urlWithParams;
       }
