@@ -27,6 +27,40 @@
         font-size: 24px;
         font-weight: bold;
       }
+
+      /* Responsive design for mobile devices */
+      @media (max-width: 768px) {
+        body {
+          margin: 10px;
+        }
+
+        .stats-container {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .stat-box {
+          padding: 10px;
+        }
+
+        .stat-value {
+          font-size: 20px;
+        }
+
+        th, td {
+          padding: 10px 8px;
+          font-size: 12px;
+        }
+
+        .chart-legend {
+          font-size: 10px;
+        }
+
+        .legend-color-box {
+          width: 10px;
+          height: 10px;
+        }
+      }
       table {
         border-collapse: collapse;
         width: auto;
@@ -35,9 +69,10 @@
       th,
       td {
         border: 1px solid #ddd;
-        padding: 6px 8px;
+        padding: 8px 12px;
         text-align: left;
         white-space: nowrap;
+        font-size: 14px;
       }
       th {
         background-color: #f2f2f2;
