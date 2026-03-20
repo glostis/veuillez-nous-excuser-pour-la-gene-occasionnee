@@ -85,9 +85,20 @@ def calculate_delay_statistics(delays):
 def get_stats():
     """Get delay statistics. Can be split by line if split_by_line parameter is True."""
     split_by_line = request.args.get("split_by_line", "false").lower() == "true"
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
     conn = get_db_connection()
 
     try:
+        # Build date filter condition
+        date_filter = ""
+        if start_date and end_date:
+            date_filter = f"WHERE DATE(scheduled_departure_time) BETWEEN '{start_date}' AND '{end_date}'"
+        elif start_date:
+            date_filter = f"WHERE DATE(scheduled_departure_time) >= '{start_date}'"
+        elif end_date:
+            date_filter = f"WHERE DATE(scheduled_departure_time) <= '{end_date}'"
+
         if split_by_line:
             # Get all records with direction information
             query = f"""
@@ -101,6 +112,7 @@ def get_stats():
                 scheduled_arrival_time,
                 real_arrival_time
             FROM {TABLE_NAME}
+            {date_filter}
             ORDER BY scheduled_departure_time ASC
             """
 
@@ -188,6 +200,7 @@ def get_stats():
                 scheduled_arrival_time,
                 real_arrival_time
             FROM {TABLE_NAME}
+            {date_filter}
             """
 
             results = conn.execute(query).fetchdf()
@@ -217,9 +230,20 @@ def get_stats():
 @app.route("/api/timeline")
 def get_timeline():
     """Get timeline data for delay distribution over time."""
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
     conn = get_db_connection()
 
     try:
+        # Build date filter condition
+        date_filter = ""
+        if start_date and end_date:
+            date_filter = f"WHERE DATE(scheduled_departure_time) BETWEEN '{start_date}' AND '{end_date}'"
+        elif start_date:
+            date_filter = f"WHERE DATE(scheduled_departure_time) >= '{start_date}'"
+        elif end_date:
+            date_filter = f"WHERE DATE(scheduled_departure_time) <= '{end_date}'"
+
         # Get all records with timestamps
         query = f"""
         SELECT
@@ -227,6 +251,7 @@ def get_timeline():
             scheduled_arrival_time,
             real_arrival_time
         FROM {TABLE_NAME}
+        {date_filter}
         ORDER BY scheduled_departure_time ASC
         """
 
@@ -285,6 +310,46 @@ def get_timeline():
             })
 
         return jsonify(timeline_stats)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
+@app.route("/api/date-range")
+def get_date_range():
+    """Get the minimum and maximum dates available in the database."""
+    conn = get_db_connection()
+
+    try:
+        query = f"""
+            SELECT
+                MIN(DATE(scheduled_departure_time)) AS min_date,
+                MAX(DATE(scheduled_departure_time)) AS max_date
+            FROM {TABLE_NAME}
+        """
+
+        result = conn.execute(query).fetchdf()
+
+        if len(result) == 0:
+            return jsonify({"error": "No data found"}), 404
+
+        date_range = result.iloc[0]
+
+        # Format dates as YYYY-MM-DD (remove time portion if present)
+        min_date_str = str(date_range["min_date"])
+        max_date_str = str(date_range["max_date"])
+
+        # Remove timestamp if present (format: YYYY-MM-DD HH:MM:SS)
+        min_date_clean = min_date_str.split(" ")[0] if " " in min_date_str else min_date_str
+        max_date_clean = max_date_str.split(" ")[0] if " " in max_date_str else max_date_str
+
+        return jsonify({
+            "min_date": min_date_clean,
+            "max_date": max_date_clean
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

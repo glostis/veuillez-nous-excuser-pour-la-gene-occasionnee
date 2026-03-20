@@ -60,6 +60,21 @@
           width: 10px;
           height: 10px;
         }
+
+        .date-filter-section {
+          padding: 10px;
+        }
+
+        .date-filter-section div[style*="display: flex"] {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .date-filter-section input[type="date"],
+        .date-filter-section button {
+          width: 100%;
+          box-sizing: border-box;
+        }
       }
       table {
         border-collapse: collapse;
@@ -228,6 +243,27 @@
             Paris Gare du Nord</i
           >
         </p>
+      </div>
+    </div>
+
+    <!-- Date Filter Section -->
+    <div class="date-filter-section" style="margin-bottom: 20px; padding: 15px; background-color: var(--color-stat-box-bg); border-radius: 5px; border: 1px solid var(--color-border);">
+      <h3 style="margin-top: 0; color: var(--color-text);">Filtre par date</h3>
+      <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <label for="start-date" style="font-weight: bold; color: var(--color-text);">Date de début:</label>
+          <input type="date" id="start-date" style="padding: 8px; border-radius: 4px; border: 1px solid var(--color-border); background-color: var(--color-background); color: var(--color-text);" lang="fr">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <label for="end-date" style="font-weight: bold; color: var(--color-text);">Date de fin:</label>
+          <input type="date" id="end-date" style="padding: 8px; border-radius: 4px; border: 1px solid var(--color-border); background-color: var(--color-background); color: var(--color-text);" lang="fr">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; justify-content: flex-end;">
+          <button id="apply-filter" style="padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Appliquer le filtre</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px; justify-content: flex-end;">
+          <button id="reset-filter" style="padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Réinitialiser</button>
+        </div>
       </div>
     </div>
 
@@ -696,7 +732,338 @@
         }
       }
 
+      // Global variables for date filtering
+      let currentStartDate = null;
+      let currentEndDate = null;
+
+      async function loadDateRange() {
+        try {
+          const response = await fetch("/api/date-range");
+          const dateRange = await response.json();
+
+          if (dateRange.min_date && dateRange.max_date) {
+            // Set default dates to full range
+            currentStartDate = dateRange.min_date;
+            currentEndDate = dateRange.max_date;
+
+            // Set input values and constraints directly
+            document.getElementById('start-date').value = dateRange.min_date;
+            document.getElementById('end-date').value = dateRange.max_date;
+            document.getElementById('start-date').max = dateRange.max_date;
+            document.getElementById('end-date').max = dateRange.max_date;
+            document.getElementById('start-date').min = dateRange.min_date;
+            document.getElementById('end-date').min = dateRange.min_date;
+          }
+        } catch (error) {
+          console.error("Erreur lors du chargement de la plage de dates:", error);
+        }
+      }
+
+      function buildUrlWithDates(url, startDate, endDate) {
+        let urlWithParams = url;
+        if (startDate && endDate) {
+          urlWithParams += `?start_date=${startDate}&end_date=${endDate}`;
+        } else if (startDate) {
+          urlWithParams += `?start_date=${startDate}`;
+        } else if (endDate) {
+          urlWithParams += `?end_date=${endDate}`;
+        }
+        return urlWithParams;
+      }
+
+      async function loadStats() {
+        try {
+          let url = "/api/stats";
+          if (currentStartDate || currentEndDate) {
+            url = buildUrlWithDates(url, currentStartDate, currentEndDate);
+          }
+
+          const response = await fetch(url);
+          const stats = await response.json();
+
+          let html = "<h2>Statistiques globales</h2>";
+          html += '<div class="stats-container">';
+          html += `<div class="stat-box">
+                    <h3>Nombre de trajets</h3>
+                    <div class="stat-value">${stats.total_trains}</div>
+                </div>`;
+          html += `<div class="stat-box">
+                    <h3>À l'heure</h3>
+                    <div class="stat-value">${stats.on_time} (${stats.on_time_percentage.toFixed(1)}%)</div>
+                </div>`;
+          html += `<div class="stat-box">
+                    <h3>≤5 min de retard</h3>
+                    <div class="stat-value">${stats.delay_5min} (${stats.delay_5min_percentage.toFixed(1)}%)</div>
+                </div>`;
+          html += `<div class="stat-box">
+                    <h3>≤15 min de retard</h3>
+                    <div class="stat-value">${stats.delay_15min} (${stats.delay_15min_percentage.toFixed(1)}%)</div>
+                </div>`;
+          html += `<div class="stat-box">
+                    <h3>≤45 min de retard</h3>
+                    <div class="stat-value">${stats.delay_45min} (${stats.delay_45min_percentage.toFixed(1)}%)</div>
+                </div>`;
+          html += `<div class="stat-box">
+                    <h3>>45 min de retard</h3>
+                    <div class="stat-value">${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)</div>
+                </div>`;
+          html += "</div>";
+
+      // Add horizontal stacked bar chart for global statistics
+      html += '<div style="margin-top: 20px; width: fit-content;">';
+      html += '<h4>Répartition des retards</h4>';
+      html += generateGlobalChartHTML(stats);
+      html += '</div>';
+
+      // Add timeline chart placeholder
+      html += '<div style="margin-top: 30px;">';
+      html += '<h4>Évolution des retards dans le temps</h4>';
+      html += '<div id="timeline-chart" style="margin-top: 10px;"></div>';
+      html += '</div>';
+
+          document.getElementById("stats").innerHTML = html;
+        } catch (error) {
+          console.error("Erreur lors du chargement des statistiques:", error);
+        }
+      }
+
+      async function loadLineStats() {
+        try {
+          let url = "/api/stats?split_by_line=true";
+          if (currentStartDate || currentEndDate) {
+            url = buildUrlWithDates(url, currentStartDate, currentEndDate);
+          }
+
+          const response = await fetch(url);
+          const lineStats = await response.json();
+
+          const compiegneToParis = lineStats.filter(
+            (stat) => stat.direction === "Compiègne → Paris Nord",
+          );
+          const parisToCompiegne = lineStats.filter(
+            (stat) => stat.direction === "Paris Nord → Compiègne",
+          );
+
+          let html = "<h2>Statistiques par ligne</h2>";
+
+          html += generateTableHTML(compiegneToParis, "Compiègne vers Paris Nord");
+          html += "<br>";
+          html += generateTableHTML(parisToCompiegne, "Paris Nord vers Compiègne");
+
+          document.getElementById("line-stats").innerHTML = html;
+        } catch (error) {
+          console.error(
+            "Erreur lors du chargement des statistiques par ligne:",
+            error,
+          );
+        }
+      }
+
+      async function loadTimeline() {
+        try {
+          let url = "/api/timeline";
+          if (currentStartDate || currentEndDate) {
+            url = buildUrlWithDates(url, currentStartDate, currentEndDate);
+          }
+
+          const response = await fetch(url);
+          const timelineData = await response.json();
+
+          if (timelineData.length === 0) {
+            document.getElementById("timeline-chart").innerHTML = "<p>Aucune donnée disponible pour le timeline.</p>";
+            return;
+          }
+
+          // Determine time unit based on timespan
+          const startDate = new Date(timelineData[0].date);
+          const endDate = new Date(timelineData[timelineData.length - 1].date);
+          const daysSpan = (endDate - startDate) / (1000 * 60 * 60 * 24);
+          const useWeekly = daysSpan > 30; // Use weekly if span > 1 month
+
+          // Group data by time unit - simplified logic
+          const groupedData = {};
+          timelineData.forEach(entry => {
+            const date = new Date(entry.date);
+            let groupKey;
+
+            if (useWeekly) {
+              // Find the Monday of the current week
+              const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+              const daysToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1); // Days back to Monday
+              const monday = new Date(date);
+              monday.setDate(date.getDate() - daysToMonday);
+
+              // Use Monday's date as the group key (YYYY-MM-DD)
+              groupKey = monday.toISOString().split('T')[0];
+            } else {
+              // Group by day (YYYY-MM-DD)
+              groupKey = entry.date;
+            }
+
+            if (!groupedData[groupKey]) {
+              // For weekly grouping, we'll fix the label later
+              const displayDate = useWeekly ? new Date(groupKey) : new Date(entry.date);
+              const displayKey = useWeekly ? groupKey : entry.date;
+
+              groupedData[groupKey] = {
+                date: displayKey,
+                total_trains: 0,
+                on_time: 0,
+                delay_5min: 0,
+                delay_15min: 0,
+                delay_45min: 0,
+                delay_over_45min: 0
+              };
+            }
+
+            // Sum up the counts
+            groupedData[groupKey].total_trains += entry.total_trains;
+            groupedData[groupKey].on_time += entry.on_time;
+            groupedData[groupKey].delay_5min += entry.delay_5min;
+            groupedData[groupKey].delay_15min += entry.delay_15min;
+            groupedData[groupKey].delay_45min += entry.delay_45min;
+            groupedData[groupKey].delay_over_45min += entry.delay_over_45min;
+          });
+
+          // Convert to array and sort
+          const groupedArray = Object.values(groupedData);
+          groupedArray.sort((a, b) => a.date.localeCompare(b.date));
+
+          // Generate HTML for timeline chart
+          let html = '<div style="display: flex; overflow-x: auto; gap: 5px; margin-bottom: 10px;">';
+
+          groupedArray.forEach(period => {
+            const total = period.total_trains;
+            if (total === 0) return;
+
+            // Format date label
+            let dateLabel;
+            if (useWeekly) {
+              const monday = new Date(period.date);
+              const sunday = new Date(monday);
+              sunday.setDate(monday.getDate() + 6); // 6 days after Monday = Sunday
+
+              const startDay = monday.getDate();
+              const endDay = sunday.getDate();
+              const startMonth = monday.getMonth() + 1;
+              const endMonth = sunday.getMonth() + 1;
+
+              // Handle month transitions
+              if (startMonth === endMonth) {
+                // Same month - format as "start-end/month"
+                dateLabel = `${startDay}-${endDay}/${startMonth.toString().padStart(2, '0')}`;
+              } else {
+                // Month transition - format as "start/month-end/month"
+                dateLabel = `${startDay}/${startMonth.toString().padStart(2, '0')}-${endDay}/${endMonth.toString().padStart(2, '0')}`;
+              }
+            } else {
+              const dateParts = period.date.split('-');
+              dateLabel = `${dateParts[2]}/${dateParts[1].padStart(2, '0')}`;
+            }
+
+            html += '<div style="min-width: 40px; text-align: center;">';
+
+            // Show total number of trips at the top
+            html += `<div style="font-size: 10px; margin-bottom: 2px;">${total}</div>`;
+
+            // Vertical stacked bar chart (reversed direction)
+            html += '<div style="width: 30px; height: 100px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden; margin: 0 auto;">';
+
+            // Calculate heights for each segment
+            const segmentHeight = 100 / total;
+
+            // On time (bottom segment - reversed)
+            if (period.on_time > 0) {
+              const height = period.on_time * segmentHeight;
+              html += `<div data-chart-segment="on-time" style="width: 100%; height: ${height}px; position: absolute; bottom: 0;" title="À l'heure: ${period.on_time}"></div>`;
+            }
+
+            // 0-5 min
+            if (period.delay_5min > 0) {
+              const height = period.delay_5min * segmentHeight;
+              const bottom = period.on_time * segmentHeight;
+              html += `<div data-chart-segment="delay-5min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="≤5 min: ${period.delay_5min}"></div>`;
+            }
+
+            // 5-15 min
+            if (period.delay_15min > 0) {
+              const height = period.delay_15min * segmentHeight;
+              const bottom = (period.on_time + period.delay_5min) * segmentHeight;
+              html += `<div data-chart-segment="delay-15min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="≤15 min: ${period.delay_15min}"></div>`;
+            }
+
+            // 15-45 min
+            if (period.delay_45min > 0) {
+              const height = period.delay_45min * segmentHeight;
+              const bottom = (period.on_time + period.delay_5min + period.delay_15min) * segmentHeight;
+              html += `<div data-chart-segment="delay-45min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="≤45 min: ${period.delay_45min}"></div>`;
+            }
+
+            // Over 45 min (top segment - reversed)
+            if (period.delay_over_45min > 0) {
+              const height = period.delay_over_45min * segmentHeight;
+              const bottom = (period.on_time + period.delay_5min + period.delay_15min + period.delay_45min) * segmentHeight;
+              html += `<div data-chart-segment="delay-over-45min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title=">45 min: ${period.delay_over_45min}"></div>`;
+            }
+
+            html += '</div>';
+            html += `<div style="font-size: 10px; margin-top: 2px;">${dateLabel}</div>`;
+            html += '</div>';
+          });
+
+          html += '</div>';
+          html += generateChartLegendHTML();
+
+          document.getElementById("timeline-chart").innerHTML = html;
+
+        } catch (error) {
+          console.error("Erreur lors du chargement du timeline:", error);
+          document.getElementById("timeline-chart").innerHTML = "<p>Erreur lors du chargement du timeline.</p>";
+        }
+      }
+
+      function setupDateFilter() {
+        document.getElementById('apply-filter').addEventListener('click', function() {
+          const startDate = document.getElementById('start-date').value;
+          const endDate = document.getElementById('end-date').value;
+
+          // Validate dates
+          if (startDate && endDate && startDate > endDate) {
+            alert('La date de début ne peut pas être postérieure à la date de fin.');
+            return;
+          }
+
+          // Update global variables
+          currentStartDate = startDate || null;
+          currentEndDate = endDate || null;
+
+          // Reload all data with new date filter
+          loadStats();
+          loadLineStats();
+          loadTimeline();
+        });
+
+        document.getElementById('reset-filter').addEventListener('click', async function() {
+          // Reset to default date range
+          const response = await fetch("/api/date-range");
+          const dateRange = await response.json();
+
+          currentStartDate = dateRange.min_date;
+          currentEndDate = dateRange.max_date;
+
+          // Update input values
+          document.getElementById('start-date').value = dateRange.min_date;
+          document.getElementById('end-date').value = dateRange.max_date;
+
+          // Reload all data with full date range
+          loadStats();
+          loadLineStats();
+          loadTimeline();
+        });
+      }
+
       window.onload = function () {
+        loadDateRange();
         loadStats();
         loadLineStats();
         loadTimestamp();
@@ -705,6 +1072,7 @@
         checkDarkReader();
 
         setupSystemThemeListener();
+        setupDateFilter();
       };
     </script>
   </body>
