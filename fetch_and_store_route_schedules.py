@@ -12,6 +12,7 @@ This script focuses on:
 import os
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import duckdb
 import requests
@@ -47,11 +48,20 @@ def datetime_to_unix_timestamp(dt_str: str) -> int:
 
 
 def datetime_to_timestamp(dt_str: str) -> str:
-    """Convert datetime string to ISO format for TIMESTAMP WITH TIME ZONE."""
-    if not dt_str:
-        return "1970-01-01T00:00:00Z"
+    """Convert datetime string to ISO format for TIMESTAMP WITH TIME ZONE.
+
+    The SNCF API returns datetimes in Europe/Paris timezone, so we need to
+    properly handle the timezone conversion.
+    """
+    # Parse as naive datetime (SNCF API format)
     dt = datetime.strptime(dt_str, "%Y%m%dT%H%M%S")
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Localize to Europe/Paris timezone
+    paris_tz = ZoneInfo("Europe/Paris")
+    dt_paris = dt.replace(tzinfo=paris_tz)
+
+    # Format as ISO 8601 with timezone offset
+    return dt_paris.isoformat()
 
 
 def fetch_lines_between_stations(station_1: str, station_2: str) -> list[dict[str, Any]]:
