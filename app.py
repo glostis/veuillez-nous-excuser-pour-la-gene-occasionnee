@@ -17,7 +17,12 @@ TABLE_NAME = "route_schedules"
 
 def get_db_connection():
     """Create a new database connection."""
-    return duckdb.connect(DB_PATH)
+    # Use test database if in testing mode
+    if app.config.get('TESTING'):
+        db_path = app.config.get('DB_PATH', DB_PATH)
+    else:
+        db_path = DB_PATH
+    return duckdb.connect(db_path)
 
 
 def calculate_delay_minutes(scheduled_time, real_time):
