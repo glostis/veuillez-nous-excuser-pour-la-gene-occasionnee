@@ -183,7 +183,7 @@ async function loadStats() {
         // 15-45 min delay segment
         if (stat.delay_45min > 0) {
             const width = (stat.delay_45min / total * 100).toFixed(1);
-            html += `<div data-chart-segment="delay-45min" style="width: ${width}%; height: 100%; float: left;" title="≤45 min: ${stats.delay_45min} (${stats.delay_45min_percentage.toFixed(1)}%)"></div>`;
+            html += `<div data-chart-segment="delay-45min" style="width: ${width}%; height: 100%; float: left;" title="≤45 min: ${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)"></div>`;
         }
 
         // Over 45 min delay segment

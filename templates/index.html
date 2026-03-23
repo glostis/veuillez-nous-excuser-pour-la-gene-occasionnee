@@ -81,20 +81,6 @@
         width: auto;
         table-layout: auto;
       }
-      th,
-      td {
-        border: 1px solid #ddd;
-        padding: 8px 12px;
-        text-align: left;
-        white-space: nowrap;
-        font-size: 14px;
-      }
-      th {
-        background-color: #f2f2f2;
-      }
-      tr:nth-child(even) {
-        background-color: #f9f9f9;
-      }
       .header-with-logo {
         display: flex;
         align-items: center;
@@ -147,22 +133,26 @@
         background-color: var(--color-stat-box-bg);
       }
 
-      th {
-        background-color: var(--color-table-header);
-        color: var(--color-text);
-      }
-
-      tr:nth-child(even) {
-        background-color: var(--color-table-even);
-      }
-
       table {
         border-color: var(--color-border);
       }
 
       th, td {
+        border: 1px solid;
         border-color: var(--color-border);
         color: var(--color-text);
+        padding: 8px 12px;
+        text-align: left;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+
+      th {
+        background-color: var(--color-table-header);
+      }
+
+      tr:nth-child(even) {
+        background-color: var(--color-table-even);
       }
 
       /* Chart colors */
