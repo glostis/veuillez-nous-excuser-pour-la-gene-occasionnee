@@ -79,8 +79,24 @@
       }
       table {
         border-collapse: collapse;
-        width: auto;
+        width: 100%;
         table-layout: auto;
+        overflow-x: auto;
+      }
+
+      /* Mobile table container for horizontal scrolling */
+      @media (max-width: 768px) {
+        .table-container {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          max-width: 100%;
+          margin-bottom: 20px;
+        }
+
+        table {
+          min-width: 600px;
+          width: auto;
+        }
       }
       .header-with-logo {
         display: flex;

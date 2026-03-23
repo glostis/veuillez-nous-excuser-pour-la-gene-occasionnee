@@ -1,6 +1,6 @@
 function generateTableHTML(stats, title) {
   let html = `<h3>${title}</h3>`;
-  html += "<table>";
+  html += '<div class="table-container"><table>';
   html +=
     "<tr><th>Ligne</th><th>Horaire</th><th>Retard moyen</th><th>Trajets</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retards</th></tr>";
 
@@ -36,7 +36,7 @@ function generateTableHTML(stats, title) {
                   </tr>`;
   });
 
-  html += "</table>";
+  html += "</table></div>";
 
   // Add legend below the table
   html += generateChartLegendHTML();
