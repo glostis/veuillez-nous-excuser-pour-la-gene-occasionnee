@@ -302,10 +302,12 @@ async function loadStats() {
     html += generateGlobalChartHTML(stats);
     html += "</div>";
 
-    // Add timeline chart placeholder
+    // Add timeline chart
     html += '<div style="margin-top: 30px;">';
     html += "<h4>Évolution des retards dans le temps</h4>";
-    html += '<div id="timeline-chart" style="margin-top: 10px;"></div>';
+    html += '<div id="timeline-chart" style="margin-top: 10px;">';
+    html += await generateTimelineChartHTML();
+    html += '</div>';
     html += "</div>";
 
     document.getElementById("stats").innerHTML = html;
@@ -346,7 +348,7 @@ async function loadLineStats() {
   }
 }
 
-async function loadTimeline() {
+async function generateTimelineChartHTML() {
   try {
     let url = "/api/timeline";
     if (currentStartDate || currentEndDate) {
@@ -357,9 +359,7 @@ async function loadTimeline() {
     const timelineData = await response.json();
 
     if (timelineData.length === 0) {
-      document.getElementById("timeline-chart").innerHTML =
-        "<p>Aucune donnée disponible pour la frise chronologique.</p>";
-      return;
+      return "<p>Aucune donnée disponible pour la frise chronologique.</p>";
     }
 
     // Determine time unit based on timespan
@@ -513,11 +513,10 @@ async function loadTimeline() {
     html += "</div>";
     html += generateChartLegendHTML();
 
-    document.getElementById("timeline-chart").innerHTML = html;
+    return html;
   } catch (error) {
     console.error("Erreur lors du chargement de la frise chronologique :", error);
-    document.getElementById("timeline-chart").innerHTML =
-      "<p>Erreur lors du chargement de la frise chronologique.</p>";
+    return "<p>Erreur lors du chargement de la frise chronologique.</p>";
   }
 }
 
@@ -543,7 +542,6 @@ function setupDateFilter() {
       // Reload all data with new date filter
       loadStats();
       loadLineStats();
-      loadTimeline();
     });
 
   document
@@ -563,7 +561,6 @@ function setupDateFilter() {
       // Reload all data with full date range
       loadStats();
       loadLineStats();
-      loadTimeline();
     });
 }
 
@@ -575,7 +572,6 @@ window.onload = function () {
 
   loadStats();
   loadLineStats();
-  loadTimeline();
 
   checkDarkReader();
   setupSystemThemeListener();
