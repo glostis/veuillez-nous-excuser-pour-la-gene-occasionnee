@@ -521,47 +521,80 @@ async function generateTimelineChartHTML() {
 }
 
 function setupDateFilter() {
-  document
-    .getElementById("apply-filter")
-    .addEventListener("click", function () {
-      const startDate = document.getElementById("start-date").value;
-      const endDate = document.getElementById("end-date").value;
+  // Auto-apply when date inputs change
+  document.getElementById("start-date").addEventListener("change", applyDateFilter);
+  document.getElementById("end-date").addEventListener("change", applyDateFilter);
 
-      // Validate dates
-      if (startDate && endDate && startDate > endDate) {
-        alert(
-          "La date de début ne peut pas être postérieure à la date de fin.",
-        );
-        return;
-      }
+  // Preset buttons
+  document.getElementById("preset-week").addEventListener("click", () => setPresetDateRange("week"));
+  document.getElementById("preset-month").addEventListener("click", () => setPresetDateRange("month"));
+  document.getElementById("preset-all").addEventListener("click", () => setPresetDateRange("all"));
+}
 
-      // Update global variables
-      currentStartDate = startDate || null;
-      currentEndDate = endDate || null;
+function applyDateFilter() {
+  const startDate = document.getElementById("start-date").value;
+  const endDate = document.getElementById("end-date").value;
 
-      // Reload all data with new date filter
-      loadStats();
-      loadLineStats();
-    });
+  // Validate dates
+  if (startDate && endDate && startDate > endDate) {
+    alert("La date de début ne peut pas être postérieure à la date de fin.");
+    // Reset to previous valid values
+    document.getElementById("start-date").value = currentStartDate || "";
+    document.getElementById("end-date").value = currentEndDate || "";
+    return;
+  }
 
-  document
-    .getElementById("reset-filter")
-    .addEventListener("click", async function () {
-      // Reset to default date range
-      const response = await fetch("/api/date-range");
-      const dateRange = await response.json();
+  // Update global variables
+  currentStartDate = startDate || null;
+  currentEndDate = endDate || null;
 
-      currentStartDate = dateRange.min_date;
-      currentEndDate = dateRange.max_date;
+  // Reload all data with new date filter
+  loadStats();
+  loadLineStats();
+}
 
-      // Update input values
-      document.getElementById("start-date").value = dateRange.min_date;
-      document.getElementById("end-date").value = dateRange.max_date;
+async function setPresetDateRange(preset) {
+  const response = await fetch("/api/date-range");
+  const dateRange = await response.json();
 
-      // Reload all data with full date range
-      loadStats();
-      loadLineStats();
-    });
+  const today = new Date();
+  const endDate = today.toISOString().split("T")[0];
+  let startDate;
+
+  switch (preset) {
+    case "week":
+      // Last 7 days
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 7);
+      startDate = weekAgo.toISOString().split("T")[0];
+      break;
+    case "month":
+      // Last 30 days
+      const monthAgo = new Date(today);
+      monthAgo.setDate(today.getDate() - 30);
+      startDate = monthAgo.toISOString().split("T")[0];
+      break;
+    case "all":
+      // Full range
+      startDate = dateRange.min_date;
+      break;
+  }
+
+  // Ensure dates are within available range
+  const finalStartDate = startDate > dateRange.max_date ? dateRange.max_date :
+                         startDate < dateRange.min_date ? dateRange.min_date : startDate;
+  const finalEndDate = endDate > dateRange.max_date ? dateRange.max_date :
+                       endDate < dateRange.min_date ? dateRange.min_date : endDate;
+
+  // Update inputs and global variables
+  document.getElementById("start-date").value = finalStartDate;
+  document.getElementById("end-date").value = finalEndDate;
+  currentStartDate = finalStartDate;
+  currentEndDate = finalEndDate;
+
+  // Reload data
+  loadStats();
+  loadLineStats();
 }
 
 window.onload = function () {
