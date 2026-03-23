@@ -64,34 +64,30 @@ function generateGlobalChartHTML(stats) {
   let html =
     '<div style="width: 100%; height: 30px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden; margin-bottom: 5px;">';
 
-  // On time segment
-  if (stats.on_time > 0) {
-    const width = ((stats.on_time / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="on-time" style="width: ${width}%; height: 100%; float: left;" title="À l'heure: ${stats.on_time} (${stats.on_time_percentage.toFixed(1)}%)"></div>`;
-  }
+  // Calculate widths to ensure total is exactly 100%
+  const segments = [];
+  if (stats.on_time > 0) segments.push({count: stats.on_time, type: 'on-time', label: 'À l\'heure'});
+  if (stats.delay_5min > 0) segments.push({count: stats.delay_5min, type: 'delay-5min', label: '≤5 min'});
+  if (stats.delay_15min > 0) segments.push({count: stats.delay_15min, type: 'delay-15min', label: '≤15 min'});
+  if (stats.delay_45min > 0) segments.push({count: stats.delay_45min, type: 'delay-45min', label: '≤45 min'});
+  if (stats.delay_over_45min > 0) segments.push({count: stats.delay_over_45min, type: 'delay-over-45min', label: '>45 min'});
 
-  // 0-5 min delay segment
-  if (stats.delay_5min > 0) {
-    const width = ((stats.delay_5min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-5min" style="width: ${width}%; height: 100%; float: left;" title="≤5 min: ${stats.delay_5min} (${stats.delay_5min_percentage.toFixed(1)}%)"></div>`;
-  }
+  // Calculate widths ensuring total is 100%
+  let usedWidth = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const isLast = i === segments.length - 1;
+    let width;
+    if (isLast) {
+      // Last segment gets remaining width
+      width = 100 - usedWidth;
+    } else {
+      // Round other segments to 1 decimal place
+      width = parseFloat(((segments[i].count / total) * 100).toFixed(1));
+      usedWidth += width;
+    }
 
-  // 5-15 min delay segment
-  if (stats.delay_15min > 0) {
-    const width = ((stats.delay_15min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-15min" style="width: ${width}%; height: 100%; float: left;" title="≤15 min: ${stats.delay_15min} (${stats.delay_15min_percentage.toFixed(1)}%)"></div>`;
-  }
-
-  // 15-45 min delay segment
-  if (stats.delay_45min > 0) {
-    const width = ((stats.delay_45min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-45min" style="width: ${width}%; height: 100%; float: left;" title="≤45 min: ${stats.delay_45min} (${stats.delay_45min_percentage.toFixed(1)}%)"></div>`;
-  }
-
-  // Over 45 min delay segment
-  if (stats.delay_over_45min > 0) {
-    const width = ((stats.delay_over_45min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-over-45min" style="width: ${width}%; height: 100%; float: left;" title=">45 min: ${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)"></div>`;
+    const percentage = (segments[i].count / total) * 100;
+    html += `<div data-chart-segment="${segments[i].type}" style="width: ${width.toFixed(1)}%; height: 100%; float: left;" title="${segments[i].label}: ${segments[i].count} (${percentage.toFixed(1)}%)"></div>`;
   }
 
   html += "</div>";
@@ -116,34 +112,30 @@ function generateInlineChartHTML(stat) {
   let html =
     '<div style="width: 150px; height: 15px; position: relative; border: 1px solid var(--color-border); border-radius: 3px; overflow: hidden;">';
 
-  // On time segment
-  if (stat.on_time > 0) {
-    const width = ((stat.on_time / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="on-time" style="width: ${width}%; height: 100%; float: left;" title="À l'heure: ${stat.on_time} (${stat.on_time_percentage.toFixed(1)}%)"></div>`;
-  }
+  // Calculate widths to ensure total is exactly 100%
+  const segments = [];
+  if (stat.on_time > 0) segments.push({count: stat.on_time, type: 'on-time', label: 'À l\'heure'});
+  if (stat.delay_5min > 0) segments.push({count: stat.delay_5min, type: 'delay-5min', label: '≤5 min'});
+  if (stat.delay_15min > 0) segments.push({count: stat.delay_15min, type: 'delay-15min', label: '≤15 min'});
+  if (stat.delay_45min > 0) segments.push({count: stat.delay_45min, type: 'delay-45min', label: '≤45 min'});
+  if (stat.delay_over_45min > 0) segments.push({count: stat.delay_over_45min, type: 'delay-over-45min', label: '>45 min'});
 
-  // 0-5 min delay segment
-  if (stat.delay_5min > 0) {
-    const width = ((stat.delay_5min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-5min" style="width: ${width}%; height: 100%; float: left;" title="≤5 min: ${stat.delay_5min} (${stat.delay_5min_percentage.toFixed(1)}%)"></div>`;
-  }
+  // Calculate widths ensuring total is 100%
+  let usedWidth = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const isLast = i === segments.length - 1;
+    let width;
+    if (isLast) {
+      // Last segment gets remaining width
+      width = 100 - usedWidth;
+    } else {
+      // Round other segments to 1 decimal place
+      width = parseFloat(((segments[i].count / total) * 100).toFixed(1));
+      usedWidth += width;
+    }
 
-  // 5-15 min delay segment
-  if (stat.delay_15min > 0) {
-    const width = ((stat.delay_15min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-15min" style="width: ${width}%; height: 100%; float: left;" title="≤15 min: ${stat.delay_15min} (${stat.delay_15min_percentage.toFixed(1)}%)"></div>`;
-  }
-
-  // 15-45 min delay segment
-  if (stat.delay_45min > 0) {
-    const width = ((stat.delay_45min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-45min" style="width: ${width}%; height: 100%; float: left;" title="≤45 min: ${stat.delay_45min} (${stat.delay_45min_percentage.toFixed(1)}%)"></div>`;
-  }
-
-  // Over 45 min delay segment
-  if (stat.delay_over_45min > 0) {
-    const width = ((stat.delay_over_45min / total) * 100).toFixed(1);
-    html += `<div data-chart-segment="delay-over-45min" style="width: ${width}%; height: 100%; float: left;" title=">45 min: ${stat.delay_over_45min} (${stat.delay_over_45min_percentage.toFixed(1)}%)"></div>`;
+    const percentage = (segments[i].count / total) * 100;
+    html += `<div data-chart-segment="${segments[i].type}" style="width: ${width.toFixed(1)}%; height: 100%; float: left;" title="${segments[i].label}: ${segments[i].count} (${percentage.toFixed(1)}%)"></div>`;
   }
 
   html += "</div>";
