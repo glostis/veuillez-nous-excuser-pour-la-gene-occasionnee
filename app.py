@@ -127,7 +127,7 @@ def get_stats():
             FROM {TABLE_NAME}
             {date_filter}
             GROUP BY line
-            ORDER BY line ASC
+            ORDER BY MIN(STRFTIME(scheduled_departure_time, '%H:%M')) ASC
             """
 
             results = conn.execute(query).fetchdf()

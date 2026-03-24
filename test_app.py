@@ -48,15 +48,18 @@ def setup_test_database():
         )
     """)
 
-    # Insert synthetic data - 10 rows with 3 different lines and various delays
+    # Insert synthetic data - 10 rows with:
+    # - 3 different lines names (K01-03)
+    # - 7 different train numbers (01-07)
+    # - various delays
     base_date = datetime(2024, 1, 1, 0, 0, 0)
 
     data = [
         # Line K01 - Paris Nord → Compiègne
         (
             "1",
+            "01",
             "K01",
-            "TER Hauts-de-France",
             "Paris Nord",
             base_date + timedelta(hours=8),
             base_date + timedelta(hours=8, minutes=5),
@@ -67,8 +70,8 @@ def setup_test_database():
         ),  # 10 min delay
         (
             "2",
+            "02",
             "K01",
-            "TER Hauts-de-France",
             "Paris Nord",
             base_date + timedelta(hours=10),
             base_date + timedelta(hours=10, minutes=2),
@@ -79,8 +82,8 @@ def setup_test_database():
         ),  # 3 min delay
         (
             "3",
+            "03",
             "K01",
-            "TER Hauts-de-France",
             "Paris Nord",
             base_date + timedelta(hours=12),
             base_date + timedelta(hours=12),
@@ -92,8 +95,8 @@ def setup_test_database():
         # Line K02 - Compiègne → Paris Nord
         (
             "4",
+            "04",
             "K02",
-            "TER Hauts-de-France",
             "Compiègne",
             base_date + timedelta(hours=14),
             base_date + timedelta(hours=14, minutes=15),
@@ -104,8 +107,8 @@ def setup_test_database():
         ),  # 30 min delay
         (
             "5",
+            "05",
             "K02",
-            "TER Hauts-de-France",
             "Compiègne",
             base_date + timedelta(hours=16),
             base_date + timedelta(hours=16, minutes=5),
@@ -114,36 +117,36 @@ def setup_test_database():
             base_date + timedelta(hours=17, minutes=20),
             base_date + timedelta(days=1),
         ),  # 20 min delay
-        # Line K03 - Paris Nord → Compiègne
+        # Line K03 - Paris Nord → Compiègne (earlier than K02 to test sorting)
         (
             "6",
+            "06",
             "K03",
-            "TER Hauts-de-France",
             "Paris Nord",
-            base_date + timedelta(hours=18),
-            base_date + timedelta(hours=18, minutes=10),
+            base_date + timedelta(hours=13),  # 13:00 - earlier than K02's 14:00
+            base_date + timedelta(hours=13, minutes=10),
             "Compiègne",
-            base_date + timedelta(hours=19),
-            base_date + timedelta(hours=19, minutes=45),
+            base_date + timedelta(hours=14),
+            base_date + timedelta(hours=14, minutes=45),
             base_date + timedelta(days=1),
         ),  # 45 min delay
         (
             "7",
+            "07",
             "K03",
-            "TER Hauts-de-France",
             "Paris Nord",
-            base_date + timedelta(hours=20),
-            base_date + timedelta(hours=20, minutes=5),
+            base_date + timedelta(hours=15),  # 15:00 - between K02's 14:00 and 16:00
+            base_date + timedelta(hours=15, minutes=5),
             "Compiègne",
-            base_date + timedelta(hours=21),
-            base_date + timedelta(hours=22),
+            base_date + timedelta(hours=16),
+            base_date + timedelta(hours=17),
             base_date + timedelta(days=1),
         ),  # 60 min delay (over 45)
         # Additional data for different dates
         (
             "8",
+            "01",  # Same train number as data 1, but different date
             "K01",
-            "TER Hauts-de-France",
             "Paris Nord",
             base_date + timedelta(days=1, hours=8),
             base_date + timedelta(days=1, hours=8, minutes=2),
@@ -154,8 +157,8 @@ def setup_test_database():
         ),  # 5 min delay on day 2
         (
             "9",
-            "K02",
-            "TER Hauts-de-France",
+            "02",
+            "K01",
             "Compiègne",
             base_date + timedelta(days=1, hours=10),
             base_date + timedelta(days=1, hours=10, minutes=8),
@@ -166,14 +169,14 @@ def setup_test_database():
         ),  # 15 min delay on day 2
         (
             "10",
+            "06",
             "K03",
-            "TER Hauts-de-France",
             "Paris Nord",
-            base_date + timedelta(days=1, hours=12),
-            base_date + timedelta(days=1, hours=12, minutes=3),
-            "Compiègne",
             base_date + timedelta(days=1, hours=13),
-            base_date + timedelta(days=1, hours=13, minutes=25),
+            base_date + timedelta(days=1, hours=13, minutes=3),
+            "Compiègne",
+            base_date + timedelta(days=1, hours=14),
+            base_date + timedelta(days=1, hours=14, minutes=25),
             base_date + timedelta(days=2),
         ),  # 25 min delay on day 2
     ]
@@ -230,41 +233,87 @@ def test_get_stats_with_split(test_client):
 
     data = response.get_json()
 
-    # Should have 3 lines: K01, K02, K03
-    assert len(data) == 3
+    # Should have 7 lines: K01 01, K01 02, K01 03, K02 04, K02 05, K03 06, K03 07
+    assert len(data) == 7
+
+    # Verify results are sorted by departure time (not alphabetically by line name)
+    departure_times = [item["departure_time"] for item in data]
+    assert departure_times == sorted(departure_times), "Results should be sorted by departure time"
 
     # Find each line and verify its statistics
     lines = {item["line"]: item for item in data}
 
-    # Line K01: trains 1, 2, 3, 8
-    k01 = lines["TER Hauts-de-France K01"]
-    assert k01["total_trains"] == 4
-    assert k01["on_time"] == 1  # train 3
-    assert k01["delay_5min"] == 2  # trains 2, 8
-    assert k01["delay_15min"] == 1  # train 1 (10 min)
-    assert k01["delay_45min"] == 0
-    assert k01["delay_over_45min"] == 0
-    assert k01["average_delay_minutes"] == pytest.approx(4.5)  # (10 + 3 + 0 + 5) / 4 = 4.5
+    assert lines.keys() == {"K01 01", "K01 02", "K01 03", "K03 06", "K02 04", "K03 07", "K02 05"}
 
-    # Line K02: trains 4, 5, 9
-    k02 = lines["TER Hauts-de-France K02"]
-    assert k02["total_trains"] == 3
-    assert k02["on_time"] == 0
-    assert k02["delay_5min"] == 0
-    assert k02["delay_15min"] == 1  # train 9 (15 min)
-    assert k02["delay_45min"] == 2  # trains 4 (30 min), 5 (20 min)
-    assert k02["delay_over_45min"] == 0
-    assert k02["average_delay_minutes"] == pytest.approx(21.7, rel=1e-1)  # (30 + 20 + 15) / 3 = 21.666...
+    # Line K01 01: trains 1, 8
+    k01_01 = lines["K01 01"]
+    assert k01_01["total_trains"] == 2
+    assert k01_01["on_time"] == 0  # both trains have delays
+    assert k01_01["delay_5min"] == 1  # train 8 (5 min)
+    assert k01_01["delay_15min"] == 1  # train 1 (10 min)
+    assert k01_01["delay_45min"] == 0
+    assert k01_01["delay_over_45min"] == 0
+    assert k01_01["average_delay_minutes"] == pytest.approx(7.5)  # (10 + 5) / 2 = 7.5
 
-    # Line K03: trains 6, 7, 10
-    k03 = lines["TER Hauts-de-France K03"]
-    assert k03["total_trains"] == 3
-    assert k03["on_time"] == 0
-    assert k03["delay_5min"] == 0
-    assert k03["delay_15min"] == 0
-    assert k03["delay_45min"] == 2  # train 6 (45 min), train 10 (25 min)
-    assert k03["delay_over_45min"] == 1  # train 7 (60 min)
-    assert k03["average_delay_minutes"] == pytest.approx(43.3, rel=1e-1)  # (45 + 60 + 25) / 3 = 43.333...
+    # Line K01 02: trains 2, 9
+    k01_02 = lines["K01 02"]
+    assert k01_02["total_trains"] == 2
+    assert k01_02["on_time"] == 0
+    assert k01_02["delay_5min"] == 1  # train 2 (3 min)
+    assert k01_02["delay_15min"] == 1  # train 9 (15 min)
+    assert k01_02["delay_45min"] == 0
+    assert k01_02["delay_over_45min"] == 0
+    assert k01_02["average_delay_minutes"] == pytest.approx(9.0)  # (3 + 15) / 2 = 9.0
+
+    # Line K01 03: train 3
+    k01_03 = lines["K01 03"]
+    assert k01_03["total_trains"] == 1
+    assert k01_03["on_time"] == 1  # train 3
+    assert k01_03["delay_5min"] == 0
+    assert k01_03["delay_15min"] == 0
+    assert k01_03["delay_45min"] == 0
+    assert k01_03["delay_over_45min"] == 0
+    assert k01_03["average_delay_minutes"] == 0.0
+
+    # Line K02 04: train 4
+    k02_04 = lines["K02 04"]
+    assert k02_04["total_trains"] == 1
+    assert k02_04["on_time"] == 0
+    assert k02_04["delay_5min"] == 0
+    assert k02_04["delay_15min"] == 0
+    assert k02_04["delay_45min"] == 1  # train 4 (30 min)
+    assert k02_04["delay_over_45min"] == 0
+    assert k02_04["average_delay_minutes"] == 30.0
+
+    # Line K02 05: train 5
+    k02_05 = lines["K02 05"]
+    assert k02_05["total_trains"] == 1
+    assert k02_05["on_time"] == 0
+    assert k02_05["delay_5min"] == 0
+    assert k02_05["delay_15min"] == 0
+    assert k02_05["delay_45min"] == 1  # train 5 (20 min)
+    assert k02_05["delay_over_45min"] == 0
+    assert k02_05["average_delay_minutes"] == 20.0
+
+    # Line K03 06: trains 6, 10
+    k03_06 = lines["K03 06"]
+    assert k03_06["total_trains"] == 2
+    assert k03_06["on_time"] == 0
+    assert k03_06["delay_5min"] == 0
+    assert k03_06["delay_15min"] == 0
+    assert k03_06["delay_45min"] == 2  # train 6 (45 min), train 10 (25 min)
+    assert k03_06["delay_over_45min"] == 0
+    assert k03_06["average_delay_minutes"] == pytest.approx(35.0)  # (45 + 25) / 2 = 35.0
+
+    # Line K03 07: train 7
+    k03_07 = lines["K03 07"]
+    assert k03_07["total_trains"] == 1
+    assert k03_07["on_time"] == 0
+    assert k03_07["delay_5min"] == 0
+    assert k03_07["delay_15min"] == 0
+    assert k03_07["delay_45min"] == 0
+    assert k03_07["delay_over_45min"] == 1  # train 7 (60 min)
+    assert k03_07["average_delay_minutes"] == 60.0
 
 
 def test_get_stats_with_date_range(test_client):
