@@ -1,15 +1,20 @@
 function generateTableHTML(stats, title) {
   let html = `<h3>${title}</h3>`;
   html += '<div class="table-container"><table>';
-  html +=
-    "<tr><th>Ligne</th><th>Horaire</th><th>Retard moyen</th><th>Trajets</th><th>À l'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Retards</th></tr>";
+  html += '<thead><tr><th>Ligne</th><th>Durée</th><th>Retard moyen</th><th>Retards</th><th>Trajets</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th></tr></thead><tbody>';
 
   stats.forEach((stat) => {
-    // Format the time range: HH:MM - HH:MM (duration min or hhmm)
-    let timeDisplay = stat.departure_time;
-    if (stat.arrival_time && stat.scheduled_duration) {
-      // Format duration: XXmin if < 60, XXhYY otherwise
-      let durationDisplay;
+    // Format the line information: C13 16:30 - 17:28
+    let lineDisplay = stat.line.split(" ")[0]; // Get line number
+    if (stat.arrival_time) {
+      lineDisplay += ` ${stat.departure_time} - ${stat.arrival_time}`;
+    } else {
+      lineDisplay += ` ${stat.departure_time}`;
+    }
+
+    // Format duration for separate column
+    let durationDisplay = '';
+    if (stat.scheduled_duration) {
       if (stat.scheduled_duration < 60) {
         durationDisplay = `${stat.scheduled_duration} min`;
       } else {
@@ -17,26 +22,23 @@ function generateTableHTML(stats, title) {
         const minutes = stat.scheduled_duration % 60;
         durationDisplay = `${hours}h${minutes.toString().padStart(2, "0")}`;
       }
-      timeDisplay = `${stat.departure_time} - ${stat.arrival_time} (${durationDisplay})`;
-    } else if (stat.arrival_time) {
-      timeDisplay = `${stat.departure_time} - ${stat.arrival_time}`;
     }
 
     html += `<tr>
-                      <td>${stat.line.split(" ")[0]}</td>
-                      <td>${timeDisplay}</td>
+                      <td>${lineDisplay}</td>
+                      <td>${durationDisplay}</td>
                       <td>${stat.average_delay_minutes.toFixed(1)} min</td>
+                      <td>${generateInlineChartHTML(stat)}</td>
                       <td>${stat.total_trains}</td>
                       <td>${stat.on_time_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_5min_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_15min_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_45min_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_over_45min_percentage.toFixed(1)}%</td>
-                      <td>${generateInlineChartHTML(stat)}</td>
                   </tr>`;
   });
 
-  html += "</table></div>";
+  html += "</tbody></table></div>";
 
   // Add legend below the table
   html += generateChartLegendHTML();
