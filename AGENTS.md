@@ -6,21 +6,24 @@ This document describes how to run the Python scripts and analyze the data store
 
 ```
 .
-├── AGENTS.md                           # Project documentation
-├── app.py                              # Flask web application
-├── cronjob                             # CRON entry for the data collection script
-├── data/                               # Data files
-│   └── train_journeys.duckdb           # DuckDB database
-├── docker-compose.yml                  # Docker Compose configuration
-├── Dockerfile                          # Docker configuration
-├── fetch_and_store_route_schedules.py  # Data collection script
-├── logs/                               # Log files
-├── requirements.txt                    # Python dependencies
-├── static/                             # Static files (CSS, JS)
-├── templates/                          # HTML templates
-│   └── index.html                      # HTML template
-├── test_app.py                         # pytest module that tests the API routes
-└── .env                                # Environment variables
+├── AGENTS.md                                    # Project documentation
+├── app.py                                       # Flask web application
+├── cronjob                                      # CRON entry for the data collection script
+├── data/                                        # Data files
+│   └── train_journeys.duckdb                    # DuckDB database
+├── docker-compose.yml                           # Docker Compose configuration
+├── Dockerfile                                   # Docker configuration
+├── fetch_and_store_route_schedules.py           # Data collection script
+├── logs/                                        # Log files
+├── requirements.txt                             # Python dependencies
+├── static/                                      # Static files (CSS, JS)
+├── templates/                                   # HTML templates
+│   └── index.html
+├── tests/
+│   ├── __init__.py
+│   ├── test_app.py                              # pytest module that tests the API routes
+│   └── test_fetch_and_store_route_schedules.py  # pytest module that tests the data fetching script
+└── .env                                         # Environment variables
 ```
 
 ## Agent instructions

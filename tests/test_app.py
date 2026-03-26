@@ -12,25 +12,28 @@ import pytest
 
 from app import TABLE_NAME, app
 
-# Test database path
-TEST_DB_PATH = "test_train_journeys.duckdb"
+# Test database path template
+TEST_DB_PATH_TEMPLATE = "test_train_journeys_{test_name}.duckdb"
 
 
 @pytest.fixture(scope="module")
 def test_client():
     """Create a test client for the Flask app."""
     app.config["TESTING"] = True
-    app.config["DB_PATH"] = TEST_DB_PATH
 
     with app.test_client() as client:
         yield client
 
 
 @pytest.fixture(scope="function", autouse=True)
-def setup_test_database():
-    """Create a test database with synthetic data."""
+def setup_test_database(request):
+    """Create a test database with synthetic data using a unique name per test."""
+    # Generate unique database path based on test function name
+    test_name = request.node.name.replace("[", "_").replace("]", "_").replace("/", "_")
+    test_db_path = TEST_DB_PATH_TEMPLATE.format(test_name=test_name)
+
     # Create test database
-    conn = duckdb.connect(TEST_DB_PATH)
+    conn = duckdb.connect(test_db_path)
 
     # Create table
     conn.execute(f"""
@@ -191,11 +194,14 @@ def setup_test_database():
 
     conn.close()
 
+    # Set the database path in app config for this test
+    app.config["DB_PATH"] = test_db_path
+
     yield
 
     # Cleanup - remove test database
-    if os.path.exists(TEST_DB_PATH):
-        os.remove(TEST_DB_PATH)
+    if os.path.exists(test_db_path):
+        os.remove(test_db_path)
 
 
 def test_get_stats_no_split(test_client):
