@@ -26,7 +26,7 @@ def test_client():
         yield client
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup_test_database():
     """Create a test database with synthetic data."""
     # Create test database

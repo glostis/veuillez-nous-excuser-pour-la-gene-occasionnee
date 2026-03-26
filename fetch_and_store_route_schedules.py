@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import duckdb
 import requests
 from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # Load environment variables from .env file
 load_dotenv()
@@ -66,6 +67,11 @@ def datetime_to_timestamp(dt_str: str) -> str:
     return dt_paris.isoformat()
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type(Exception)
+)
 def fetch_lines_between_stations(station_1: str, station_2: str) -> list[dict[str, Any]]:
     """
     Fetch all lines that run between two stations.
@@ -99,6 +105,11 @@ def fetch_lines_between_stations(station_1: str, station_2: str) -> list[dict[st
     return [line for line in station_1_lines if line["id"] in common_line_ids]
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type(Exception)
+)
 def fetch_route_schedules_for_line(line_id: str, date: str) -> dict[str, Any]:
     """
     Fetch route schedules for a specific line on a given date.
