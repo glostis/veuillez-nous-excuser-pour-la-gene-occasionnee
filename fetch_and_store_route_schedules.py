@@ -9,8 +9,10 @@ This script focuses on:
 3. Storing raw data in DuckDB with one row per train trip
 """
 
+import json
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -418,8 +420,10 @@ def main(debug: bool = True):
     # (realtime = real departure and arrival times, not the scheduled ones — see https://doc.navitia.io/#realtime)
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
 
+    data_dump_dir = Path("./data") / yesterday
     if debug:
         print(f"Fetching route schedules for {yesterday}...")
+        data_dump_dir.mkdir(exist_ok=True)
 
     all_relevant_schedules = []
 
@@ -431,6 +435,10 @@ def main(debug: bool = True):
             print(f"  Fetching schedules for line: {line_name}")
 
         route_schedules_data = fetch_route_schedules_for_line(line_id, yesterday)
+
+        if debug:
+            data_dump_path = data_dump_dir / f"{line_name}.json"
+            data_dump_path.write_text(json.dumps(route_schedules_data))
 
         # Extract relevant schedules that include both stations
         relevant_schedules = extract_relevant_schedules(
@@ -452,4 +460,8 @@ def main(debug: bool = True):
 
 
 if __name__ == "__main__":
+    print("---------------------------------------")
+    print("Starting fetch_route_schedules_for_line")
     main()
+    print("Finished fetch_route_schedules_for_line")
+    print("---------------------------------------")
