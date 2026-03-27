@@ -27,27 +27,31 @@ GTFS_STATIC_URL = "https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData
 GTFS_RT_TU_URL = "https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates"
 
 
+# Create gtfs_data directory if it doesn't exist
+os.makedirs("gtfs_data", exist_ok=True)
+
+
 def extract_gtfs_static():
     """Extract GTFS static data and build station mapping."""
     print("📦 Downloading and extracting GTFS static data...")
 
     # Download GTFS static data
-    if not os.path.exists("gtfs_static.zip"):
+    if not os.path.exists("gtfs_data/gtfs_static.zip"):
         print("📥 Downloading GTFS static data...")
         response = requests.get(GTFS_STATIC_URL, timeout=30)
         response.raise_for_status()
-        with open("gtfs_static.zip", "wb") as f:
+        with open("gtfs_data/gtfs_static.zip", "wb") as f:
             f.write(response.content)
         print(f"💾 Downloaded {len(response.content)} bytes")
 
     # Extract the ZIP file
-    with zipfile.ZipFile("gtfs_static.zip", "r") as zip_ref:
-        zip_ref.extractall("gtfs_static")
+    with zipfile.ZipFile("gtfs_data/gtfs_static.zip", "r") as zip_ref:
+        zip_ref.extractall("gtfs_data/gtfs_static")
 
     print("📄 GTFS static data extracted.")
 
     # Parse stops.txt to build station ID mapping
-    stops_file = "gtfs_static/stops.txt"
+    stops_file = "gtfs_data/gtfs_static/stops.txt"
     stop_id_to_name = {}
 
     with open(stops_file, "r", encoding="utf-8") as f:
@@ -239,10 +243,10 @@ def save_results(trains):
         return None
 
     # Save detailed results
-    with open("gtfs_rt_delays.json", "w", encoding="utf-8") as f:
+    with open("gtfs_data/gtfs_rt_delays.json", "w", encoding="utf-8") as f:
         json.dump(trains, f, ensure_ascii=False, indent=2)
 
-    print("💾 Saved detailed results to gtfs_rt_delays.json")
+    print("💾 Saved detailed results to gtfs_data/gtfs_rt_delays.json")
 
     # Calculate summary statistics
     total_trains = len(trains)
@@ -277,10 +281,10 @@ def save_results(trains):
         "delay_count": len(all_delays),
     }
 
-    with open("gtfs_rt_summary.json", "w") as f:
+    with open("gtfs_data/gtfs_rt_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    print("📊 Saved summary statistics to gtfs_rt_summary.json")
+    print("📊 Saved summary statistics to gtfs_data/gtfs_rt_summary.json")
 
     return summary
 
@@ -336,8 +340,8 @@ def main():
     print("\n" + "=" * 60)
     print("✅ GTFS-RT Delay Analysis Completed!")
     print("\nGenerated files:")
-    print("   - gtfs_rt_delays.json: Detailed delay information for all trains")
-    print("   - gtfs_rt_summary.json: Summary statistics")
+    print("   - gtfs_data/gtfs_rt_delays.json: Detailed delay information for all trains")
+    print("   - gtfs_data/gtfs_rt_summary.json: Summary statistics")
     print("\nThese files contain realtime delay data that can be used to:")
     print("   • Replace the current inaccurate SNCF API")
     print("   • Store in DuckDB for historical analysis")
@@ -347,4 +351,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
