@@ -194,9 +194,13 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
             departure_station_name VARCHAR,
             departure_time_scheduled TIMESTAMP WITH TIME ZONE,
             departure_time_real TIMESTAMP WITH TIME ZONE,
+            departure_gtfs_delay INTEGER,
             arrival_station_name VARCHAR,
             arrival_time_scheduled TIMESTAMP WITH TIME ZONE,
-            arrival_time_real TIMESTAMP WITH TIME ZONE
+            arrival_time_real TIMESTAMP WITH TIME ZONE,
+            arrival_gtfs_delay INTEGER,
+            created_at TIMESTAMP WITH TIME ZONE,
+            updated_at TIMESTAMP WITH TIME ZONE
         )
     """)
 
@@ -255,14 +259,18 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
             # Get route short name
             route_short_name = route_info.get(route_id, "")
 
+            # Get current timestamp for created_at
+            created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
             # Insert into database
             conn.execute(
                 f"""
                 INSERT INTO {TABLE} (
                     trip_id, route_id, route_short_name, trip_headsign,
                     departure_station_name, departure_time_scheduled,
-                    arrival_station_name, arrival_time_scheduled
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    arrival_station_name, arrival_time_scheduled,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 [
                     trip_id,
@@ -273,6 +281,7 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
                     departure_time,
                     arrival_station,
                     arrival_time,
+                    created_at,
                 ],
             )
             total_rows_inserted += 1
