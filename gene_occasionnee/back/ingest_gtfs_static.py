@@ -19,14 +19,19 @@ from datetime import datetime
 
 import duckdb
 import requests
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from gene_occasionnee import DB_PATH, TABLE
 from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_STATIC_URL, PARIS_NORD_STOP_ID
 
-# Debug flag
 debug = False
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type(Exception),
+)
 def download_and_extract_gtfs():
     """Download and extract GTFS static data to temporary files."""
     if debug:
@@ -350,4 +355,20 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import time
+
+    max_retries = 3
+    retry_delay = 60  # seconds
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            main()
+            break  # Success, exit the retry loop
+        except Exception as e:
+            if attempt < max_retries:
+                print(f"❌ Attempt {attempt} failed: {e}")
+                print(f"🔄 Retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(retry_delay)
+            else:
+                print(f"❌ All {max_retries} attempts failed: {e}")
+                raise  # Re-raise the exception after final attempt

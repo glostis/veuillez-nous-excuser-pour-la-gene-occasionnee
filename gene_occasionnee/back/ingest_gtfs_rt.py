@@ -17,14 +17,19 @@ from datetime import datetime
 import duckdb
 import requests
 from google.transit import gtfs_realtime_pb2
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from gene_occasionnee import DB_PATH, TABLE
 from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_RT_TU_URL, PARIS_NORD_STOP_ID
 
-# Debug flag
 debug = False
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type(Exception),
+)
 def fetch_and_decode_gtfs_rt():
     """Fetch and decode GTFS-RT data."""
     if debug:

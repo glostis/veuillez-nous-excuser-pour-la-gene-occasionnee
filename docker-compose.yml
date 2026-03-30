@@ -1,7 +1,6 @@
 services:
-  fetch-schedules:
+  back:
     build: .
-    container_name: fetch-schedules
     restart: unless-stopped
     volumes:
       - ./data:/app/data
@@ -9,11 +8,10 @@ services:
     environment:
       - TZ=Europe/Paris
 
-  flask-app:
+  front:
     build:
       context: .
       dockerfile: Dockerfile.flask
-    container_name: flask-app
     restart: unless-stopped
     volumes:
       - ./data:/app/data
