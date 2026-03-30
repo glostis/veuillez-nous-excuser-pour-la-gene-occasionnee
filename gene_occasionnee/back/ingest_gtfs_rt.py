@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """
 GTFS Real-Time Data Ingestion Script
 
 This script processes GTFS real-time data to update actual departure and arrival times
 for trips between Paris Gare du Nord and Compiègne in the DuckDB database.
 
-Usage: python ingest_gtfs_rt.py
+Usage: python -m gene_occasionnee.back.ingest_gtfs_rt
 """
 
 import re
@@ -15,14 +14,8 @@ import duckdb
 import requests
 from google.transit import gtfs_realtime_pb2
 
-# Configuration
-GTFS_RT_TU_URL = "https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates"
-DB_PATH = "data/gtfs.duckdb"
-TABLE = "gtfs"
-
-# Train station stop IDs for TER trains
-PARIS_NORD_STOP_ID = "StopPoint:OCETrain TER-87271007"
-COMPIEGNE_STOP_ID = "StopPoint:OCETrain TER-87276691"
+from gene_occasionnee import DB_PATH, TABLE
+from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_RT_TU_URL, PARIS_NORD_STOP_ID
 
 
 def fetch_and_decode_gtfs_rt():
@@ -163,10 +156,8 @@ def process_gtfs_rt_data(feed, trip_ids):
         found_relevant_station = False
 
         for stu in trip_update.stop_time_update:
-            stop_id_clean = clean_stop_id(stu.stop_id)
-
             # Check if this is one of our target stations (using cleaned IDs)
-            if stop_id_clean == "87271007" or stop_id_clean == "87276691":
+            if stu.stop_id in {PARIS_NORD_STOP_ID, COMPIEGNE_STOP_ID}:
                 found_relevant_station = True
 
                 # Get absolute predicted times (these are already real-time predictions)
@@ -183,7 +174,7 @@ def process_gtfs_rt_data(feed, trip_ids):
                     stu.departure.delay if (stu.HasField("departure") and stu.departure.HasField("delay")) else None
                 )
 
-                if stop_id_clean == "87271007":
+                if stu.stop_id == PARIS_NORD_STOP_ID:
                     if departure_time:
                         paris_nord_times["departure"] = {
                             "time": parse_gtfs_rt_timestamp(departure_time),
@@ -195,7 +186,7 @@ def process_gtfs_rt_data(feed, trip_ids):
                             "delay": arrival_delay,
                         }
 
-                elif stop_id_clean == "87276691":
+                elif stu.stop_id == COMPIEGNE_STOP_ID:
                     if departure_time:
                         compiegne_times["departure"] = {
                             "time": parse_gtfs_rt_timestamp(departure_time),

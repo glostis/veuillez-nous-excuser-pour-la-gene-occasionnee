@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """
 GTFS Static Data Ingestion Script
 
 This script processes GTFS static data to extract scheduled trips between
 Paris Gare du Nord and Compiègne, then stores the trips for the current day in a DuckDB database.
 
-Usage: python ingest_gtfs_static.py
+Usage: python -m gene_occasionnee.back.ingest_gtfs_static
 """
 
 import csv
@@ -17,14 +16,8 @@ from datetime import datetime
 import duckdb
 import requests
 
-# Configuration
-GTFS_STATIC_URL = "https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData_SNCF_GTFS_NewTripId.zip"
-DB_PATH = "data/gtfs.duckdb"
-TABLE = "gtfs"
-
-# Train station stop IDs for TER trains
-PARIS_NORD_STOP_ID = "StopPoint:OCETrain TER-87271007"
-COMPIEGNE_STOP_ID = "StopPoint:OCETrain TER-87276691"
+from gene_occasionnee import DB_PATH, TABLE
+from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_STATIC_URL, PARIS_NORD_STOP_ID
 
 
 def download_and_extract_gtfs():
