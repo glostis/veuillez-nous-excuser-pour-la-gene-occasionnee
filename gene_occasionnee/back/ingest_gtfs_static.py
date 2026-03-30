@@ -4,9 +4,13 @@ GTFS Static Data Ingestion Script
 This script processes GTFS static data to extract scheduled trips between
 Paris Gare du Nord and Compiègne, then stores the trips for the current day in a DuckDB database.
 
-Usage: python -m gene_occasionnee.back.ingest_gtfs_static
+Usage: python -m gene_occasionnee.back.ingest_gtfs_static [--debug]
+
+Options:
+  --debug    Enable debug output for detailed logging
 """
 
+import argparse
 import csv
 import os
 import tempfile
@@ -19,36 +23,44 @@ import requests
 from gene_occasionnee import DB_PATH, TABLE
 from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_STATIC_URL, PARIS_NORD_STOP_ID
 
+# Debug flag
+debug = False
+
 
 def download_and_extract_gtfs():
     """Download and extract GTFS static data to temporary files."""
-    print("📦 Downloading and extracting GTFS static data to temporary files...")
+    if debug:
+        print("📦 Downloading and extracting GTFS static data to temporary files...")
 
     # Create a temporary directory
     temp_dir = tempfile.mkdtemp()
 
     # Download GTFS static data to temporary file
     zip_path = os.path.join(temp_dir, "gtfs_static.zip")
-    print("📥 Downloading GTFS static data...")
+    if debug:
+        print("📥 Downloading GTFS static data...")
     response = requests.get(GTFS_STATIC_URL, timeout=30)
     response.raise_for_status()
     with open(zip_path, "wb") as f:
         f.write(response.content)
-    print(f"💾 Downloaded {len(response.content)} bytes")
+    if debug:
+        print(f"💾 Downloaded {len(response.content)} bytes")
 
     # Extract the ZIP file to temporary directory
     extract_dir = os.path.join(temp_dir, "gtfs_static")
     os.makedirs(extract_dir, exist_ok=True)
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_dir)
-    print("📄 GTFS static data extracted.")
+    if debug:
+        print("📄 GTFS static data extracted.")
 
     return extract_dir, temp_dir
 
 
 def find_trips_through_both_stations(extract_dir, service_dates_today):
     """Find trips that go through both Paris Nord and Compiègne and run today."""
-    print("🔍 Finding trips through both stations that run today...")
+    if debug:
+        print("🔍 Finding trips through both stations that run today...")
 
     # Read stop_times.txt to find trips that include both stations
     stop_times_path = f"{extract_dir}/stop_times.txt"
@@ -71,7 +83,8 @@ def find_trips_through_both_stations(extract_dir, service_dates_today):
                 {"stop_id": stop_id, "arrival_time": arrival_time, "departure_time": departure_time}
             )
 
-    print(f"📊 Processed {len(trip_stop_times)} trips")
+    if debug:
+        print(f"📊 Processed {len(trip_stop_times)} trips")
 
     # Read trips.txt to get service_id for each trip
     trips_path = f"{extract_dir}/trips.txt"
@@ -99,7 +112,8 @@ def find_trips_through_both_stations(extract_dir, service_dates_today):
         if has_paris_nord and has_compiegne:
             relevant_trips.append({"trip_id": trip_id, "stops": stops})
 
-    print(f"🎯 Found {len(relevant_trips)} trips that go through both stations and run today")
+    if debug:
+        print(f"🎯 Found {len(relevant_trips)} trips that go through both stations and run today")
 
     return relevant_trips
 
@@ -155,7 +169,8 @@ def load_service_dates(extract_dir):
             if exception_type == "1" and date_str == today_yyyymmdd:
                 service_dates_today[service_id] = today_date
 
-    print(f"📅 Loaded service dates for {len(service_dates_today)} services running today")
+    if debug:
+        print(f"📅 Loaded service dates for {len(service_dates_today)} services running today")
     return service_dates_today
 
 
@@ -169,7 +184,8 @@ def parse_gtfs_time(date_str, time_str):
 
 def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
     """Store the relevant trips in DuckDB."""
-    print("💾 Storing data in DuckDB...")
+    if debug:
+        print("💾 Storing data in DuckDB...")
 
     # Connect to DuckDB
     conn = duckdb.connect(DB_PATH, read_only=False)
@@ -283,14 +299,25 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
     conn.commit()
     conn.close()
 
-    print(f"✅ Stored {total_rows_inserted} trip instances in DuckDB")
+    if debug:
+        print(f"✅ Stored {total_rows_inserted} trip instances in DuckDB")
+    return total_rows_inserted
 
 
 def main():
     import shutil
 
-    print("🚆 Starting GTFS Static Data Ingestion")
-    print("=" * 60)
+    global debug
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="GTFS Static Data Ingestion")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    args = parser.parse_args()
+    debug = args.debug
+
+    if debug:
+        print("🚆 Starting GTFS Static Data Ingestion")
+        print("=" * 60)
 
     # Step 1: Download and extract GTFS data
     extract_dir, temp_dir = download_and_extract_gtfs()
@@ -303,18 +330,23 @@ def main():
         relevant_trips = find_trips_through_both_stations(extract_dir, service_dates_today)
 
         # Step 4: Store in DuckDB
-        store_in_duckdb(relevant_trips, extract_dir, service_dates_today)
+        inserted_count = store_in_duckdb(relevant_trips, extract_dir, service_dates_today)
 
-        print("=" * 60)
-        print("✅ GTFS Static Data Ingestion Completed!")
-        print("📊 Found and stored trips between Paris Nord and Compiègne")
+        print(f"GTFS-STATIC: Fetched {len(relevant_trips)} trips, inserted {inserted_count} trips in DB")
+
+        if debug:
+            print("=" * 60)
+            print("✅ GTFS Static Data Ingestion Completed!")
+            print("📊 Found and stored trips between Paris Nord and Compiègne")
 
     finally:
         # Clean up temporary files
-        print("🧹 Cleaning up temporary files...")
+        if debug:
+            print("🧹 Cleaning up temporary files...")
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-        print("🗑️  Temporary files deleted")
+        if debug:
+            print("🗑️  Temporary files deleted")
 
 
 if __name__ == "__main__":

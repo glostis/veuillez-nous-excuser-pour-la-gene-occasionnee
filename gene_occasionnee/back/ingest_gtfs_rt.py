@@ -4,9 +4,13 @@ GTFS Real-Time Data Ingestion Script
 This script processes GTFS real-time data to update actual departure and arrival times
 for trips between Paris Gare du Nord and Compiègne in the DuckDB database.
 
-Usage: python -m gene_occasionnee.back.ingest_gtfs_rt
+Usage: python -m gene_occasionnee.back.ingest_gtfs_rt [--debug]
+
+Options:
+  --debug    Enable debug output for detailed logging
 """
 
+import argparse
 import re
 from datetime import datetime
 
@@ -17,28 +21,35 @@ from google.transit import gtfs_realtime_pb2
 from gene_occasionnee import DB_PATH, TABLE
 from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_RT_TU_URL, PARIS_NORD_STOP_ID
 
+# Debug flag
+debug = False
+
 
 def fetch_and_decode_gtfs_rt():
     """Fetch and decode GTFS-RT data."""
-    print("🔄 Fetching GTFS-RT data...")
+    if debug:
+        print("🔄 Fetching GTFS-RT data...")
 
     response = requests.get(GTFS_RT_TU_URL, timeout=20)
     response.raise_for_status()
 
-    print(f"📥 Downloaded {len(response.content)} bytes")
+    if debug:
+        print(f"📥 Downloaded {len(response.content)} bytes")
 
     # Decode the protocol buffer
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.ParseFromString(response.content)
 
-    print(f"🔍 Decoded {len(feed.entity)} entities")
+    if debug:
+        print(f"🔍 Decoded {len(feed.entity)} entities")
 
     return feed
 
 
 def get_trip_ids_from_duckdb():
     """Get trip_ids from DuckDB for today's trips."""
-    print("🔍 Getting trip IDs from DuckDB for today's trips...")
+    if debug:
+        print("🔍 Getting trip IDs from DuckDB for today's trips...")
 
     # Connect to DuckDB
     conn = duckdb.connect(DB_PATH, read_only=True)
@@ -56,14 +67,16 @@ def get_trip_ids_from_duckdb():
 
     # Extract trip_ids from result
     trip_ids = [row[0] for row in result]
-    print(f"📊 Found {len(trip_ids)} trip IDs for today")
+    if debug:
+        print(f"📊 Found {len(trip_ids)} trip IDs for today")
 
     return trip_ids
 
 
 def update_real_times_in_duckdb(trip_updates):
     """Update real departure and arrival times in DuckDB."""
-    print("💾 Updating real times in DuckDB...")
+    if debug:
+        print("💾 Updating real times in DuckDB...")
 
     # Connect to DuckDB
     conn = duckdb.connect(DB_PATH, read_only=False)
@@ -92,7 +105,9 @@ def update_real_times_in_duckdb(trip_updates):
     conn.commit()
     conn.close()
 
-    print(f"✅ Updated real times for {updated_count} trips")
+    if debug:
+        print(f"✅ Updated real times for {updated_count} trips")
+    return updated_count
 
 
 def parse_gtfs_rt_timestamp(timestamp):
@@ -110,8 +125,9 @@ def clean_stop_id(stop_id: str) -> str:
 
 def process_gtfs_rt_data(feed, trip_ids):
     """Process GTFS real-time data and find matching trips."""
-    print("🔍 Processing GTFS real-time data...")
-    print(f"📋 Looking for {len(trip_ids)} trip IDs from database")
+    if debug:
+        print("🔍 Processing GTFS real-time data...")
+        print(f"📋 Looking for {len(trip_ids)} trip IDs from database")
 
     # Map for trip schedule relationships
     TripSchRel = gtfs_realtime_pb2.TripDescriptor.ScheduleRelationship
@@ -231,22 +247,33 @@ def process_gtfs_rt_data(feed, trip_ids):
             if departure or arrival:
                 trip_updates.append((trip_id, departure_time_scheduled, departure, arrival))
 
-    print(f"📊 Processed {total_trips_checked} trips from GTFS-RT feed")
-    print(f"📊 Found {trips_with_matching_stations} trips with our target stations")
-    print(f"📊 Found {len(trip_updates)} trips with real-time updates")
+    if debug:
+        print(f"📊 Processed {total_trips_checked} trips from GTFS-RT feed")
+        print(f"📊 Found {trips_with_matching_stations} trips with our target stations")
+        print(f"📊 Found {len(trip_updates)} trips with real-time updates")
     return trip_updates
 
 
 def main():
-    print("🚆 Starting GTFS Real-Time Data Ingestion")
-    print("=" * 60)
+    global debug
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="GTFS Real-Time Data Ingestion")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    args = parser.parse_args()
+    debug = args.debug
+
+    if debug:
+        print("🚆 Starting GTFS Real-Time Data Ingestion")
+        print("=" * 60)
 
     try:
         # Step 1: Get trip IDs from DuckDB for today
         trip_ids = get_trip_ids_from_duckdb()
 
         if not trip_ids:
-            print("⚠️ No trip IDs found for today in DuckDB. Nothing to update.")
+            if debug:
+                print("⚠️ No trip IDs found for today in DuckDB. Nothing to update.")
             return
 
         # Step 2: Fetch and decode GTFS real-time data
@@ -257,13 +284,21 @@ def main():
 
         # Step 4: Update real times in DuckDB
         if trip_updates:
-            update_real_times_in_duckdb(trip_updates)
+            updated_count = update_real_times_in_duckdb(trip_updates)
+            print(
+                f"GTFS-RT: Fetched {len(trip_ids)} trips in DB,",
+                f"decoded {len(feed.entity)} entities from feed,",
+                f"updated {updated_count} trips in DB",
+            )
         else:
-            print("⚠️ No real-time updates found for today's trips")
+            if debug:
+                print("⚠️ No real-time updates found for today's trips")
+            print(f"GTFS-RT: Fetched {len(trip_ids)} trips in DB, no updates needed")
 
-        print("=" * 60)
-        print("✅ GTFS Real-Time Data Ingestion Completed!")
-        print("📊 Updated real departure/arrival times for trips")
+        if debug:
+            print("=" * 60)
+            print("✅ GTFS Real-Time Data Ingestion Completed!")
+            print("📊 Updated real departure/arrival times for trips")
 
     except Exception as e:
         print(f"❌ Error during GTFS real-time data ingestion: {e}")
