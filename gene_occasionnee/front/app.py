@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Flask app to display analytics on train delays between Compiègne and Paris.
 """
@@ -8,11 +7,9 @@ from datetime import datetime
 import duckdb
 from flask import Flask, jsonify, render_template, request
 
-app = Flask(__name__)
+from gene_occasionnee import DB_PATH, TABLE
 
-# Database configuration
-DB_PATH = "data/train_journeys.duckdb"
-TABLE_NAME = "route_schedules"
+app = Flask(__name__)
 
 
 def get_db_connection():
@@ -124,7 +121,7 @@ def get_stats():
                 SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 15 AND
                          EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
                 SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
-            FROM {TABLE_NAME}
+            FROM {TABLE}
             {date_filter}
             GROUP BY line
             ORDER BY MIN(STRFTIME(scheduled_departure_time, '%H:%M')) ASC
@@ -163,7 +160,7 @@ def get_stats():
         else:
             # First check if there's any data
             count_query = f"""
-            SELECT COUNT(*) AS count FROM {TABLE_NAME} {date_filter}
+            SELECT COUNT(*) AS count FROM {TABLE} {date_filter}
             """
             count_result = conn.execute(count_query).fetchdf()
             total_count = count_result.iloc[0]["count"]
@@ -183,7 +180,7 @@ def get_stats():
                 SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 15 AND
                          EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
                 SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
-            FROM {TABLE_NAME}
+            FROM {TABLE}
             {date_filter}
             """
 
@@ -245,7 +242,7 @@ def get_timeline():
             SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 15 AND
                      EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
             SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
-        FROM {TABLE_NAME}
+        FROM {TABLE}
         {date_filter}
         GROUP BY date
         ORDER BY date ASC
@@ -288,7 +285,7 @@ def get_date_range():
             SELECT
                 MIN(DATE(scheduled_departure_time)) AS min_date,
                 MAX(DATE(scheduled_departure_time)) AS max_date
-            FROM {TABLE_NAME}
+            FROM {TABLE}
         """
 
         result = conn.execute(query).fetchdf()
@@ -329,7 +326,7 @@ def get_latest_timestamp():
             SELECT
                 fetch_timestamp,
                 COUNT(*) OVER (PARTITION BY fetch_timestamp) AS row_count
-            FROM {TABLE_NAME}
+            FROM {TABLE}
             ORDER BY fetch_timestamp DESC
             LIMIT 1;
         """
