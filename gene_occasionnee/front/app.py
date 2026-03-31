@@ -5,6 +5,7 @@ Flask app to display analytics on train delays between Compiègne and Paris.
 from datetime import datetime
 
 import duckdb
+import numpy as np
 from flask import Flask, jsonify, render_template, request
 
 from gene_occasionnee import DB_PATH, TABLE
@@ -128,7 +129,7 @@ def get_stats():
                 MIN(STRFTIME(arrival_time_scheduled, '%H:%M')) AS arrival_time,
                 MIN(EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
                 EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60) AS scheduled_duration,
-                AVG(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL
+                AVG(CASE WHEN arrival_time_real IS NOT NULL
                     THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
                     ELSE NULL END) AS average_delay_minutes,
                 COUNT(*) AS total_trains,
@@ -144,14 +145,15 @@ def get_stats():
                          EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
                          EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
                 SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
+                SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
             FROM {TABLE}
             {date_filter}
             GROUP BY line
             ORDER BY MIN(STRFTIME(departure_time_scheduled, '%H:%M')) ASC
             """
 
-            results = conn.execute(query).fetchdf()
+            results = conn.execute(query).fetchdf().replace({np.nan: None})
 
             if len(results) == 0:
                 return jsonify({"error": "No data found"}), 404
@@ -182,7 +184,9 @@ def get_stats():
                         "delay_45min": int(row["delay_45min"]),
                         "delay_45min_percentage": (row["delay_45min"] / total * 100) if total > 0 else 0,
                         "delay_over_45min": int(row["delay_over_45min"]),
-                        "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0,
+                        "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0.0,
+                        "delay_unknown": int(row["delay_unknown"]),
+                        "delay_unknown_percentage": (row["delay_unknown"] / total * 100) if total > 0 else 0.0,
                     }
                 )
 
@@ -214,7 +218,8 @@ def get_stats():
                          EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
                          EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
                 SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
+                SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
             FROM {TABLE}
             {date_filter}
             """
@@ -227,15 +232,17 @@ def get_stats():
             stats = {
                 "total_trains": int(row["total_trains"]),
                 "on_time": int(row["on_time"]),
-                "on_time_percentage": (row["on_time"] / total * 100) if total > 0 else 0,
+                "on_time_percentage": (row["on_time"] / total * 100) if total > 0 else 0.0,
                 "delay_5min": int(row["delay_5min"]),
-                "delay_5min_percentage": (row["delay_5min"] / total * 100) if total > 0 else 0,
+                "delay_5min_percentage": (row["delay_5min"] / total * 100) if total > 0 else 0.0,
                 "delay_15min": int(row["delay_15min"]),
-                "delay_15min_percentage": (row["delay_15min"] / total * 100) if total > 0 else 0,
+                "delay_15min_percentage": (row["delay_15min"] / total * 100) if total > 0 else 0.0,
                 "delay_45min": int(row["delay_45min"]),
-                "delay_45min_percentage": (row["delay_45min"] / total * 100) if total > 0 else 0,
+                "delay_45min_percentage": (row["delay_45min"] / total * 100) if total > 0 else 0.0,
                 "delay_over_45min": int(row["delay_over_45min"]),
-                "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0,
+                "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0.0,
+                "delay_unknown": int(row["delay_unknown"]),
+                "delay_unknown_percentage": (row["delay_unknown"] / total * 100) if total > 0 else 0.0,
             }
 
             return jsonify(stats)
@@ -281,7 +288,8 @@ def get_timeline():
                      EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
                      EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
             SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
+            SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
         FROM {TABLE}
         {date_filter}
         GROUP BY date
@@ -305,6 +313,7 @@ def get_timeline():
                     "delay_15min": int(row["delay_15min"]),
                     "delay_45min": int(row["delay_45min"]),
                     "delay_over_45min": int(row["delay_over_45min"]),
+                    "delay_unknown": int(row["delay_unknown"]),
                 }
             )
 

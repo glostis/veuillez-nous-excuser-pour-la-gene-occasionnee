@@ -192,6 +192,7 @@
         --chart-color-delay-15min: #FFEB3B;
         --chart-color-delay-45min: #FF9800;
         --chart-color-delay-over-45min: #F44336;
+        --chart-color-delay-unknown: #9E9E9E;
       }
 
       .dark-theme {
@@ -207,6 +208,7 @@
         --chart-color-delay-15min: #FFEB3B;
         --chart-color-delay-45min: #FF9800;
         --chart-color-delay-over-45min: #F44336;
+        --chart-color-delay-unknown: #757575;
       }
 
       body {
@@ -258,6 +260,9 @@
       [data-chart-segment="delay-over-45min"] {
         background-color: var(--chart-color-delay-over-45min);
       }
+      [data-chart-segment="delay-unknown"] {
+        background-color: var(--chart-color-delay-unknown);
+      }
 
       /* Legend colors */
       .chart-legend span {
@@ -290,6 +295,9 @@
 
       .chart-legend .legend-delay-over-45min {
         background-color: var(--chart-color-delay-over-45min);
+      }
+      .chart-legend .legend-delay-unknown {
+        background-color: var(--chart-color-delay-unknown);
       }
 
 

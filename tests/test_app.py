@@ -275,6 +275,8 @@ def test_get_stats_no_split(test_client):
     assert data["delay_45min_percentage"] == 40.0
     assert data["delay_over_45min"] == 1
     assert data["delay_over_45min_percentage"] == 10.0
+    assert data["delay_unknown"] == 0
+    assert data["delay_unknown_percentage"] == 0.0
 
 
 def test_get_stats_with_split(test_client):
@@ -405,6 +407,7 @@ def test_get_timeline(test_client):
     assert day1["delay_15min"] == 1  # train 1
     assert day1["delay_45min"] == 3  # trains 4, 5, 6
     assert day1["delay_over_45min"] == 1  # train 7
+    assert day1["delay_unknown"] == 0
 
     # Day 2: 3 trains
     day2 = dates["2024-01-02"]
@@ -414,6 +417,7 @@ def test_get_timeline(test_client):
     assert day2["delay_15min"] == 1  # train 9
     assert day2["delay_45min"] == 1  # train 10
     assert day2["delay_over_45min"] == 0
+    assert day2["delay_unknown"] == 0
 
 
 def test_get_timeline_with_date_range(test_client):
