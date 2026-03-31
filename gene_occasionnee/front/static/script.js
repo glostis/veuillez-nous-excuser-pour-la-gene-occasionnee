@@ -610,6 +610,25 @@ async function setPresetDateRange(preset) {
   loadLineStats();
 }
 
+// Function to refresh all data
+async function refreshAllData() {
+  await loadStats();
+  await loadLineStats();
+  await loadTimestamp();
+}
+
+// Set up periodic refresh every 2 minutes (120,000 milliseconds)
+function setupPeriodicRefresh() {
+  // Initial refresh
+  refreshAllData();
+
+  // Set interval for periodic refresh
+  const refreshInterval = setInterval(refreshAllData, 120000);
+
+  // Store interval ID so it can be cleared if needed
+  window.refreshIntervalId = refreshInterval;
+}
+
 window.onload = function () {
   loadTimestamp();
 
@@ -621,4 +640,7 @@ window.onload = function () {
 
   checkDarkReader();
   setupSystemThemeListener();
+
+  // Start periodic refresh
+  setupPeriodicRefresh();
 };
