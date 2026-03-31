@@ -4,13 +4,9 @@ GTFS Static Data Ingestion Script
 This script processes GTFS static data to extract scheduled trips between
 Paris Gare du Nord and Compiègne, then stores the trips for the current day in a DuckDB database.
 
-Usage: python -m gene_occasionnee.back.ingest_gtfs_static [--debug]
-
-Options:
-  --debug    Enable debug output for detailed logging
+Usage: python -m gene_occasionnee.back.ingest_gtfs_static
 """
 
-import argparse
 import csv
 import os
 import tempfile
@@ -309,16 +305,8 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
     return total_rows_inserted
 
 
-def main():
+def ingest_static():
     import shutil
-
-    global debug
-
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="GTFS Static Data Ingestion")
-    parser.add_argument("--debug", action="store_true", help="Enable debug output")
-    args = parser.parse_args()
-    debug = args.debug
 
     if debug:
         print("🚆 Starting GTFS Static Data Ingestion")
@@ -354,7 +342,7 @@ def main():
             print("🗑️  Temporary files deleted")
 
 
-if __name__ == "__main__":
+def main():
     import time
 
     max_retries = 3
@@ -362,7 +350,7 @@ if __name__ == "__main__":
 
     for attempt in range(1, max_retries + 1):
         try:
-            main()
+            ingest_static()
             break  # Success, exit the retry loop
         except Exception as e:
             if attempt < max_retries:
@@ -372,3 +360,7 @@ if __name__ == "__main__":
             else:
                 print(f"❌ All {max_retries} attempts failed: {e}")
                 raise  # Re-raise the exception after final attempt
+
+
+if __name__ == "__main__":
+    main()

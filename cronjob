@@ -1,5 +1,0 @@
-# Run static script daily at 3:23 AM (has built-in retry logic: 3 attempts, 60s delay)
-23 3 * * * root cd /app && /usr/local/bin/python -m gene_occasionnee.back.ingest_gtfs_static >> /var/log/cron-static.log 2>&1
-
-# Run RT script every 2 minutes from 5:00 AM to 1:58 AM
-*/2 5-23,0-1 * * * root cd /app && /usr/local/bin/python -m gene_occasionnee.back.ingest_gtfs_rt >> /var/log/cron-rt.log 2>&1

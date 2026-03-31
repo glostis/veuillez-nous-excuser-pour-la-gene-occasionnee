@@ -4,13 +4,9 @@ GTFS Real-Time Data Ingestion Script
 This script processes GTFS real-time data to update actual departure and arrival times
 for trips between Paris Gare du Nord and Compiègne in the DuckDB database.
 
-Usage: python -m gene_occasionnee.back.ingest_gtfs_rt [--debug]
-
-Options:
-  --debug    Enable debug output for detailed logging
+Usage: python -m gene_occasionnee.back.ingest_gtfs_rt
 """
 
-import argparse
 import re
 from datetime import datetime
 
@@ -260,14 +256,6 @@ def process_gtfs_rt_data(feed, trip_ids):
 
 
 def main():
-    global debug
-
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="GTFS Real-Time Data Ingestion")
-    parser.add_argument("--debug", action="store_true", help="Enable debug output")
-    args = parser.parse_args()
-    debug = args.debug
-
     if debug:
         print("🚆 Starting GTFS Real-Time Data Ingestion")
         print("=" * 60)
@@ -291,6 +279,7 @@ def main():
         if trip_updates:
             updated_count = update_real_times_in_duckdb(trip_updates)
             print(
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]",
                 f"GTFS-RT: Fetched {len(trip_ids)} trips in DB,",
                 f"decoded {len(feed.entity)} entities from feed,",
                 f"updated {updated_count} trips in DB",
