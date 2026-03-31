@@ -2,26 +2,25 @@ services:
   back:
     build: .
     restart: unless-stopped
+    command: python -m gene_occasionnee.back
     volumes:
       - ./data:/app/data
       - ./logs:/var/log
     environment:
       - TZ=Europe/Paris
 
-  # front:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.flask
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./data:/app/data
-  #     - ./templates:/app/templates
-  #   environment:
-  #     - TZ=Europe/Paris
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.ter.rule=Host(`${DOMAIN}`)"
-  #     - "traefik.http.services.ter.loadbalancer.server.port=5000"
-  #     - "traefik.http.routers.ter.entrypoints=websecure"
-  #     - "traefik.http.routers.ter.tls.certresolver=letsencrypt"
-  #     - "traefik.http.routers.ter.tls=true"
+  front:
+    build: .
+    restart: unless-stopped
+    command: python -m gene_occasionnee.front
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=Europe/Paris
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ter.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.services.ter.loadbalancer.server.port=5000"
+      - "traefik.http.routers.ter.entrypoints=websecure"
+      - "traefik.http.routers.ter.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.ter.tls=true"

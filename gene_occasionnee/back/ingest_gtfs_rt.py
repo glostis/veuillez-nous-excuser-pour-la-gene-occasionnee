@@ -17,6 +17,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from gene_occasionnee import DB_PATH, TABLE
 from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_RT_TU_URL, PARIS_NORD_STOP_ID
+from gene_occasionnee.back.ingest_gtfs_static import main as static_main
 
 debug = False
 
@@ -266,8 +267,12 @@ def main():
 
         if not trip_ids:
             if debug:
-                print("⚠️ No trip IDs found for today in DuckDB. Nothing to update.")
-            return
+                print("⚠️ No trip IDs found for today in DuckDB. Running GTFS static data ingestion first...")
+            static_main()
+            trip_ids = get_trip_ids_from_duckdb()
+            if not trip_ids:
+                print("⚠️ No trip IDs found for today in DuckDB. Exiting.")
+                return
 
         # Step 2: Fetch and decode GTFS real-time data
         feed = fetch_and_decode_gtfs_rt()
