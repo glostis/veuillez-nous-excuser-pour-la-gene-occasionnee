@@ -10,10 +10,11 @@ from datetime import datetime, timedelta
 import duckdb
 import pytest
 
-from app import TABLE_NAME, app
+from gene_occasionnee import TABLE
+from gene_occasionnee.front.app import app
 
 # Test database path template
-TEST_DB_PATH_TEMPLATE = "test_train_journeys_{test_name}.duckdb"
+TEST_DB_PATH_TEMPLATE = "test_gtfs_{test_name}.duckdb"
 
 
 @pytest.fixture(scope="module")
@@ -35,19 +36,23 @@ def setup_test_database(request):
     # Create test database
     conn = duckdb.connect(test_db_path)
 
-    # Create table
+    # Create table with new GTFS schema
     conn.execute(f"""
-        CREATE TABLE {TABLE_NAME} (
-            id VARCHAR PRIMARY KEY,
-            train_number VARCHAR,
-            train_line_name VARCHAR,
+        CREATE TABLE {TABLE} (
+            trip_id VARCHAR PRIMARY KEY,
+            route_id VARCHAR,
+            route_short_name VARCHAR,
+            trip_headsign VARCHAR,
             departure_station_name VARCHAR,
-            scheduled_departure_time TIMESTAMP WITH TIME ZONE,
-            real_departure_time TIMESTAMP WITH TIME ZONE,
+            departure_time_scheduled TIMESTAMP WITH TIME ZONE,
+            departure_time_real TIMESTAMP WITH TIME ZONE,
+            departure_gtfs_delay INTEGER,
             arrival_station_name VARCHAR,
-            scheduled_arrival_time TIMESTAMP WITH TIME ZONE,
-            real_arrival_time TIMESTAMP WITH TIME ZONE,
-            fetch_timestamp TIMESTAMP WITH TIME ZONE
+            arrival_time_scheduled TIMESTAMP WITH TIME ZONE,
+            arrival_time_real TIMESTAMP WITH TIME ZONE,
+            arrival_gtfs_delay INTEGER,
+            created_at TIMESTAMP WITH TIME ZONE,
+            updated_at TIMESTAMP WITH TIME ZONE
         )
     """)
 
@@ -61,125 +66,165 @@ def setup_test_database(request):
         # Line K01 - Paris Nord → Compiègne
         (
             "1",
-            "01",
+            "route_K01",
             "K01",
+            "01",
             "Paris Nord",
             base_date + timedelta(hours=8),
             base_date + timedelta(hours=8, minutes=5),
+            5,
             "Compiègne",
             base_date + timedelta(hours=9),
             base_date + timedelta(hours=9, minutes=10),
+            10,
+            base_date + timedelta(days=1),
             base_date + timedelta(days=1),
         ),  # 10 min delay
         (
             "2",
-            "02",
+            "route_K01",
             "K01",
+            "02",
             "Paris Nord",
             base_date + timedelta(hours=10),
             base_date + timedelta(hours=10, minutes=2),
+            2,
             "Compiègne",
             base_date + timedelta(hours=11),
             base_date + timedelta(hours=11, minutes=3),
+            3,
+            base_date + timedelta(days=1),
             base_date + timedelta(days=1),
         ),  # 3 min delay
         (
             "3",
-            "03",
+            "route_K01",
             "K01",
+            "03",
             "Paris Nord",
             base_date + timedelta(hours=12),
             base_date + timedelta(hours=12),
+            0,
             "Compiègne",
             base_date + timedelta(hours=13),
             base_date + timedelta(hours=13),
+            0,
+            base_date + timedelta(days=1),
             base_date + timedelta(days=1),
         ),  # 0 min delay (on time)
         # Line K02 - Compiègne → Paris Nord
         (
             "4",
-            "04",
+            "route_K02",
             "K02",
+            "04",
             "Compiègne",
             base_date + timedelta(hours=14),
             base_date + timedelta(hours=14, minutes=15),
+            15,
             "Paris Nord",
             base_date + timedelta(hours=15),
             base_date + timedelta(hours=15, minutes=30),
+            30,
+            base_date + timedelta(days=1),
             base_date + timedelta(days=1),
         ),  # 30 min delay
         (
             "5",
-            "05",
+            "route_K02",
             "K02",
+            "05",
             "Compiègne",
             base_date + timedelta(hours=16),
             base_date + timedelta(hours=16, minutes=5),
+            5,
             "Paris Nord",
             base_date + timedelta(hours=17),
             base_date + timedelta(hours=17, minutes=20),
+            20,
+            base_date + timedelta(days=1),
             base_date + timedelta(days=1),
         ),  # 20 min delay
         # Line K03 - Paris Nord → Compiègne (earlier than K02 to test sorting)
         (
             "6",
-            "06",
+            "route_K03",
             "K03",
+            "06",
             "Paris Nord",
             base_date + timedelta(hours=13),  # 13:00 - earlier than K02's 14:00
             base_date + timedelta(hours=13, minutes=10),
+            10,
             "Compiègne",
             base_date + timedelta(hours=14),
             base_date + timedelta(hours=14, minutes=45),
+            45,
+            base_date + timedelta(days=1),
             base_date + timedelta(days=1),
         ),  # 45 min delay
         (
             "7",
-            "07",
+            "route_K03",
             "K03",
+            "07",
             "Paris Nord",
             base_date + timedelta(hours=15),  # 15:00 - between K02's 14:00 and 16:00
             base_date + timedelta(hours=15, minutes=5),
+            5,
             "Compiègne",
             base_date + timedelta(hours=16),
             base_date + timedelta(hours=17),
+            60,
+            base_date + timedelta(days=1),
             base_date + timedelta(days=1),
         ),  # 60 min delay (over 45)
         # Additional data for different dates
         (
             "8",
-            "01",  # Same train number as data 1, but different date
+            "route_K01",
             "K01",
+            "01",  # Same train number as data 1, but different date
             "Paris Nord",
             base_date + timedelta(days=1, hours=8),
             base_date + timedelta(days=1, hours=8, minutes=2),
+            2,
             "Compiègne",
             base_date + timedelta(days=1, hours=9),
             base_date + timedelta(days=1, hours=9, minutes=5),
+            5,
+            base_date + timedelta(days=2),
             base_date + timedelta(days=2),
         ),  # 5 min delay on day 2
         (
             "9",
-            "02",
+            "route_K01",
             "K01",
+            "02",
             "Compiègne",
             base_date + timedelta(days=1, hours=10),
             base_date + timedelta(days=1, hours=10, minutes=8),
+            8,
             "Paris Nord",
             base_date + timedelta(days=1, hours=11),
             base_date + timedelta(days=1, hours=11, minutes=15),
+            15,
+            base_date + timedelta(days=2),
             base_date + timedelta(days=2),
         ),  # 15 min delay on day 2
         (
             "10",
-            "06",
+            "route_K03",
             "K03",
+            "06",
             "Paris Nord",
             base_date + timedelta(days=1, hours=13),
             base_date + timedelta(days=1, hours=13, minutes=3),
+            3,
             "Compiègne",
             base_date + timedelta(days=1, hours=14),
             base_date + timedelta(days=1, hours=14, minutes=25),
+            25,
+            base_date + timedelta(days=2),
             base_date + timedelta(days=2),
         ),  # 25 min delay on day 2
     ]
@@ -187,7 +232,7 @@ def setup_test_database(request):
     for row in data:
         conn.execute(
             f"""
-            INSERT INTO {TABLE_NAME} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO {TABLE} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             row,
         )
@@ -404,14 +449,9 @@ def test_get_latest_timestamp(test_client):
 
     data = response.get_json()
 
-    # Should return the latest fetch timestamp (2024-01-03 from our data)
-    assert "fetch_timestamp" in data
-    assert "row_count" in data
-    assert "data_date" in data
-    assert "is_outdated" in data
-
-    # The latest fetch timestamp should be for 3 rows (trains 8, 9, 10 from day 2)
-    assert data["row_count"] == "3"
+    # Should return the latest updated_at timestamp (2024-01-03 from our data)
+    assert data["updated_at"] == "03/01/2024 à 00h00 (heure de Compiègne)"
+    assert data["is_outdated"]
 
 
 def test_error_handling_no_data(test_client):

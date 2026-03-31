@@ -151,11 +151,7 @@ async function loadTimestamp() {
 
     let html =
       "<p><strong>Dernière mise à jour des données :</strong> le " +
-      timestamp.fetch_timestamp +
-      " — " +
-      timestamp.row_count +
-      " trajets récupérés pour la journée du " +
-      timestamp.data_date +
+      timestamp.updated_at +
       "</p>";
 
     if (timestamp.is_outdated) {

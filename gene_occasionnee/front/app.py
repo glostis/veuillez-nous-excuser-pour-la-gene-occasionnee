@@ -15,8 +15,8 @@ app = Flask(__name__)
 def get_db_connection():
     """Create a new database connection."""
     # Use test database if in testing mode
-    if app.config.get('TESTING'):
-        db_path = app.config.get('DB_PATH', DB_PATH)
+    if app.config.get("TESTING"):
+        db_path = app.config.get("DB_PATH", DB_PATH)
     else:
         db_path = DB_PATH
     return duckdb.connect(db_path)
@@ -36,6 +36,23 @@ def calculate_delay_minutes(scheduled_time, real_time):
             print(f"Error calculating delay: {e}")
             print(f"Scheduled: {scheduled_time} ({type(scheduled_time)}), Real: {real_time} ({type(real_time)})")
     return None
+
+
+def get_line_name_from_trip(trip_headsign):
+    """Extract line name from trip_headsign (e.g., '16450' -> 'K13')."""
+    # The trip_headsign contains the trip number, we need to map it to line names
+    # For now, we'll use a simple mapping based on known patterns
+    # This should be replaced with a proper lookup from the routes table
+    if trip_headsign:
+        try:
+            trip_num = int(trip_headsign)
+            # K13 line pattern (example - adjust based on actual data)
+            if 16450 <= trip_num <= 16470:
+                return "K13"
+            # Add more line mappings as needed
+        except ValueError:
+            pass
+    return "Unknown"
 
 
 @app.route("/")
@@ -95,36 +112,43 @@ def get_stats():
         # Build date filter condition
         date_filter = ""
         if start_date and end_date:
-            date_filter = f"WHERE DATE(scheduled_departure_time) BETWEEN '{start_date}' AND '{end_date}'"
+            date_filter = f"WHERE DATE(departure_time_scheduled) BETWEEN '{start_date}' AND '{end_date}'"
         elif start_date:
-            date_filter = f"WHERE DATE(scheduled_departure_time) >= '{start_date}'"
+            date_filter = f"WHERE DATE(departure_time_scheduled) >= '{start_date}'"
         elif end_date:
-            date_filter = f"WHERE DATE(scheduled_departure_time) <= '{end_date}'"
+            date_filter = f"WHERE DATE(departure_time_scheduled) <= '{end_date}'"
 
         if split_by_line:
             # Use SQL aggregation to get statistics by line
             query = f"""
             SELECT
-                train_line_name || ' ' || train_number AS line,
+                route_short_name || ' ' || trip_headsign AS line,
                 MIN(departure_station_name || ' → ' || arrival_station_name) AS direction,
-                MIN(STRFTIME(scheduled_departure_time, '%H:%M')) AS departure_time,
-                MIN(STRFTIME(scheduled_arrival_time, '%H:%M')) AS arrival_time,
-                MIN(EXTRACT(MINUTE FROM (scheduled_arrival_time - scheduled_departure_time)) +
-                EXTRACT(HOUR FROM (scheduled_arrival_time - scheduled_departure_time)) * 60) AS scheduled_duration,
-                AVG(EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60) AS average_delay_minutes,
+                MIN(STRFTIME(departure_time_scheduled, '%H:%M')) AS departure_time,
+                MIN(STRFTIME(arrival_time_scheduled, '%H:%M')) AS arrival_time,
+                MIN(EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
+                EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60) AS scheduled_duration,
+                AVG(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL
+                    THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
+                    ELSE NULL END) AS average_delay_minutes,
                 COUNT(*) AS total_trains,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 0 AND
-                         EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 5 AND
-                         EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 15 AND
-                         EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
             FROM {TABLE}
             {date_filter}
             GROUP BY line
-            ORDER BY MIN(STRFTIME(scheduled_departure_time, '%H:%M')) ASC
+            ORDER BY MIN(STRFTIME(departure_time_scheduled, '%H:%M')) ASC
             """
 
             results = conn.execute(query).fetchdf()
@@ -136,25 +160,31 @@ def get_stats():
             stats_by_line = []
             for _, row in results.iterrows():
                 total = row["total_trains"]
-                stats_by_line.append({
-                    "line": row["line"],
-                    "direction": row["direction"],
-                    "departure_time": row["departure_time"],
-                    "arrival_time": row["arrival_time"],
-                    "scheduled_duration": int(row["scheduled_duration"]) if row["scheduled_duration"] is not None else 0,
-                    "average_delay_minutes": float(row["average_delay_minutes"]) if row["average_delay_minutes"] is not None else 0,
-                    "total_trains": int(row["total_trains"]),
-                    "on_time": int(row["on_time"]),
-                    "on_time_percentage": (row["on_time"] / total * 100) if total > 0 else 0,
-                    "delay_5min": int(row["delay_5min"]),
-                    "delay_5min_percentage": (row["delay_5min"] / total * 100) if total > 0 else 0,
-                    "delay_15min": int(row["delay_15min"]),
-                    "delay_15min_percentage": (row["delay_15min"] / total * 100) if total > 0 else 0,
-                    "delay_45min": int(row["delay_45min"]),
-                    "delay_45min_percentage": (row["delay_45min"] / total * 100) if total > 0 else 0,
-                    "delay_over_45min": int(row["delay_over_45min"]),
-                    "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0,
-                })
+                stats_by_line.append(
+                    {
+                        "line": row["line"],
+                        "direction": row["direction"],
+                        "departure_time": row["departure_time"],
+                        "arrival_time": row["arrival_time"],
+                        "scheduled_duration": int(row["scheduled_duration"])
+                        if row["scheduled_duration"] is not None
+                        else 0,
+                        "average_delay_minutes": float(row["average_delay_minutes"])
+                        if row["average_delay_minutes"] is not None
+                        else 0,
+                        "total_trains": int(row["total_trains"]),
+                        "on_time": int(row["on_time"]),
+                        "on_time_percentage": (row["on_time"] / total * 100) if total > 0 else 0,
+                        "delay_5min": int(row["delay_5min"]),
+                        "delay_5min_percentage": (row["delay_5min"] / total * 100) if total > 0 else 0,
+                        "delay_15min": int(row["delay_15min"]),
+                        "delay_15min_percentage": (row["delay_15min"] / total * 100) if total > 0 else 0,
+                        "delay_45min": int(row["delay_45min"]),
+                        "delay_45min_percentage": (row["delay_45min"] / total * 100) if total > 0 else 0,
+                        "delay_over_45min": int(row["delay_over_45min"]),
+                        "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0,
+                    }
+                )
 
             return jsonify(stats_by_line)
         else:
@@ -172,14 +202,19 @@ def get_stats():
             query = f"""
             SELECT
                 COUNT(*) AS total_trains,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 0 AND
-                         EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 5 AND
-                         EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 15 AND
-                         EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-                SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
+                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
             FROM {TABLE}
             {date_filter}
             """
@@ -223,25 +258,30 @@ def get_timeline():
         # Build date filter condition
         date_filter = ""
         if start_date and end_date:
-            date_filter = f"WHERE DATE(scheduled_departure_time) BETWEEN '{start_date}' AND '{end_date}'"
+            date_filter = f"WHERE DATE(departure_time_scheduled) BETWEEN '{start_date}' AND '{end_date}'"
         elif start_date:
-            date_filter = f"WHERE DATE(scheduled_departure_time) >= '{start_date}'"
+            date_filter = f"WHERE DATE(departure_time_scheduled) >= '{start_date}'"
         elif end_date:
-            date_filter = f"WHERE DATE(scheduled_departure_time) <= '{end_date}'"
+            date_filter = f"WHERE DATE(departure_time_scheduled) <= '{end_date}'"
 
         # Use SQL aggregation to get statistics by date
         query = f"""
         SELECT
-            STRFTIME(scheduled_departure_time, '%Y-%m-%d') AS date,
+            STRFTIME(departure_time_scheduled, '%Y-%m-%d') AS date,
             COUNT(*) AS total_trains,
-            SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-            SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 0 AND
-                     EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-            SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 5 AND
-                     EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-            SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 15 AND
-                     EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-            SUM(CASE WHEN EXTRACT(EPOCH FROM (real_arrival_time - scheduled_arrival_time)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min
         FROM {TABLE}
         {date_filter}
         GROUP BY date
@@ -256,15 +296,17 @@ def get_timeline():
         # Format the results
         timeline_stats = []
         for _, row in results.iterrows():
-            timeline_stats.append({
-                "date": row["date"],
-                "total_trains": int(row["total_trains"]),
-                "on_time": int(row["on_time"]),
-                "delay_5min": int(row["delay_5min"]),
-                "delay_15min": int(row["delay_15min"]),
-                "delay_45min": int(row["delay_45min"]),
-                "delay_over_45min": int(row["delay_over_45min"])
-            })
+            timeline_stats.append(
+                {
+                    "date": row["date"],
+                    "total_trains": int(row["total_trains"]),
+                    "on_time": int(row["on_time"]),
+                    "delay_5min": int(row["delay_5min"]),
+                    "delay_15min": int(row["delay_15min"]),
+                    "delay_45min": int(row["delay_45min"]),
+                    "delay_over_45min": int(row["delay_over_45min"]),
+                }
+            )
 
         return jsonify(timeline_stats)
 
@@ -283,8 +325,8 @@ def get_date_range():
     try:
         query = f"""
             SELECT
-                MIN(DATE(scheduled_departure_time)) AS min_date,
-                MAX(DATE(scheduled_departure_time)) AS max_date
+                MIN(DATE(departure_time_scheduled)) AS min_date,
+                MAX(DATE(departure_time_scheduled)) AS max_date
             FROM {TABLE}
         """
 
@@ -303,10 +345,7 @@ def get_date_range():
         min_date_clean = min_date_str.split(" ")[0] if " " in min_date_str else min_date_str
         max_date_clean = max_date_str.split(" ")[0] if " " in max_date_str else max_date_str
 
-        return jsonify({
-            "min_date": min_date_clean,
-            "max_date": max_date_clean
-        })
+        return jsonify({"min_date": min_date_clean, "max_date": max_date_clean})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -317,17 +356,15 @@ def get_date_range():
 
 @app.route("/api/latest-timestamp")
 def get_latest_timestamp():
-    """Get the latest fetch timestamp and corresponding number of train schedules."""
+    """Get the latest updated_at timestamp."""
     conn = get_db_connection()
 
     try:
-        # Get the record with the most recent fetch_timestamp
         query = f"""
             SELECT
-                fetch_timestamp,
-                COUNT(*) OVER (PARTITION BY fetch_timestamp) AS row_count
+                updated_at
             FROM {TABLE}
-            ORDER BY fetch_timestamp DESC
+            ORDER BY updated_at DESC
             LIMIT 1;
         """
 
@@ -337,27 +374,20 @@ def get_latest_timestamp():
             return jsonify({"error": "No data found"}), 404
 
         latest_data = result.iloc[0]
-        fetch_timestamp = latest_data["fetch_timestamp"]
-        row_count = latest_data["row_count"]
+        updated_at = latest_data["updated_at"]
 
-        # Check if data is outdated (older than 24 hours)
+        # Check if data is outdated (older than 15 minutes)
         from datetime import timedelta
 
-        current_time = datetime.now(fetch_timestamp.tzinfo) if fetch_timestamp.tzinfo else datetime.now()
-        time_diff = current_time - fetch_timestamp
-        is_outdated = time_diff > timedelta(hours=24)
+        current_time = datetime.now(updated_at.tzinfo) if updated_at.tzinfo else datetime.now()
+        time_diff = current_time - updated_at
+        is_outdated = time_diff > timedelta(minutes=15)
 
         # Format the timestamp for display
-        formatted_timestamp = fetch_timestamp.strftime("%d/%m/%Y à %Hh%M (heure de Compiègne)")
-
-        # Get the date for which data was collected (subtract one day from fetch timestamp)
-        data_date = fetch_timestamp.date() - timedelta(days=1)
-        formatted_data_date = data_date.strftime("%d/%m/%Y")
+        formatted_timestamp = updated_at.strftime("%d/%m/%Y à %Hh%M (heure de Compiègne)")
 
         timestamps = {
-            "fetch_timestamp": formatted_timestamp,
-            "row_count": str(row_count),
-            "data_date": formatted_data_date,
+            "updated_at": formatted_timestamp,
             "is_outdated": is_outdated,
         }
 
@@ -368,7 +398,3 @@ def get_latest_timestamp():
 
     finally:
         conn.close()
-
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
