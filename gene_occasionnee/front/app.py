@@ -4,11 +4,10 @@ Flask app to display analytics on train delays between Compiègne and Paris.
 
 from datetime import datetime
 
-import duckdb
 import numpy as np
 from flask import Flask, jsonify, render_template, request
 
-from gene_occasionnee import DB_PATH, TABLE
+from gene_occasionnee import DB_PATH, TABLE, duckdb_connect
 
 app = Flask(__name__)
 
@@ -20,7 +19,7 @@ def get_db_connection():
         db_path = app.config.get("DB_PATH", DB_PATH)
     else:
         db_path = DB_PATH
-    return duckdb.connect(db_path)
+    return duckdb_connect(db_path, read_only=True)
 
 
 def calculate_delay_minutes(scheduled_time, real_time):

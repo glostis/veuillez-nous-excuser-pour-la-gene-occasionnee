@@ -10,12 +10,11 @@ Usage: python -m gene_occasionnee.back.ingest_gtfs_rt
 import re
 from datetime import datetime
 
-import duckdb
 import requests
 from google.transit import gtfs_realtime_pb2
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from gene_occasionnee import DB_PATH, TABLE
+from gene_occasionnee import DB_PATH, TABLE, duckdb_connect
 from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_RT_TU_URL, PARIS_NORD_STOP_ID
 from gene_occasionnee.back.ingest_gtfs_static import main as static_main
 
@@ -57,8 +56,7 @@ def get_trip_ids_from_duckdb():
     if debug:
         print("🔍 Getting trip IDs from DuckDB for today's trips...")
 
-    # Connect to DuckDB
-    conn = duckdb.connect(DB_PATH, read_only=True)
+    conn = duckdb_connect(DB_PATH, read_only=True)
 
     # Query trip_ids for today
     result = conn.execute(f"SELECT trip_id FROM {TABLE} WHERE DATE(departure_time_scheduled) = ?", [today()]).fetchall()
@@ -79,8 +77,7 @@ def update_real_times_in_duckdb(trip_updates):
     if debug:
         print("💾 Updating real times in DuckDB...")
 
-    # Connect to DuckDB
-    conn = duckdb.connect(DB_PATH, read_only=False)
+    conn = duckdb_connect(DB_PATH, read_only=False)
 
     # Get current timestamp for updated_at
     updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -220,7 +217,7 @@ def process_gtfs_rt_data(feed, trip_ids):
 
         # Determine direction and update accordingly
         # Get scheduled times from database to determine direction
-        conn = duckdb.connect(DB_PATH, read_only=True)
+        conn = duckdb_connect(DB_PATH, read_only=True)
         db_result = conn.execute(
             f"SELECT departure_station_name, arrival_station_name FROM {TABLE} WHERE trip_id = ?",
             [trip_id],
