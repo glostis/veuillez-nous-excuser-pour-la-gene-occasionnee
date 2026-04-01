@@ -11,6 +11,23 @@ from gene_occasionnee import DB_PATH, TABLE, duckdb_connect
 
 app = Flask(__name__)
 
+DELAY_AGG = """
+    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
+    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
+    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
+    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
+    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
+    SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
+"""
+
 
 def get_db_connection():
     """Create a new database connection."""
@@ -33,49 +50,26 @@ def date_filter(start_date: str | None = None, end_date: str | None = None) -> s
     return date_filter
 
 
+def row_to_delays(row) -> dict:
+    total = row["total_trains"]
+    delays = {"total_trains": total}
+    for delay in [
+        "on_time",
+        "delay_5min",
+        "delay_15min",
+        "delay_45min",
+        "delay_over_45min",
+        "delay_unknown",
+    ]:
+        delays[delay] = int(row[delay])
+        delays[f"{delay}_percentage"] = int(100 * row[delay] / total) if total > 0 else 0
+    return delays
+
+
 @app.route("/")
 def index():
     """Main dashboard page."""
     return render_template("index.html")
-
-
-def calculate_delay_statistics(delays):
-    """Calculate delay statistics from a list of delays."""
-    total = len(delays)
-    if total == 0:
-        return {
-            "total_trains": 0,
-            "on_time": 0,
-            "on_time_percentage": 0,
-            "delay_5min": 0,
-            "delay_5min_percentage": 0,
-            "delay_15min": 0,
-            "delay_15min_percentage": 0,
-            "delay_45min": 0,
-            "delay_45min_percentage": 0,
-            "delay_over_45min": 0,
-            "delay_over_45min_percentage": 0,
-        }
-
-    on_time = sum(1 for d in delays if d <= 0)
-    delay_5min = sum(1 for d in delays if 0 < d <= 5)
-    delay_15min = sum(1 for d in delays if 5 < d <= 15)
-    delay_45min = sum(1 for d in delays if 15 < d <= 45)
-    delay_over_45min = sum(1 for d in delays if d > 45)
-
-    return {
-        "total_trains": total,
-        "on_time": on_time,
-        "on_time_percentage": (on_time / total * 100) if total > 0 else 0,
-        "delay_5min": delay_5min,
-        "delay_5min_percentage": (delay_5min / total * 100) if total > 0 else 0,
-        "delay_15min": delay_15min,
-        "delay_15min_percentage": (delay_15min / total * 100) if total > 0 else 0,
-        "delay_45min": delay_45min,
-        "delay_45min_percentage": (delay_45min / total * 100) if total > 0 else 0,
-        "delay_over_45min": delay_over_45min,
-        "delay_over_45min_percentage": (delay_over_45min / total * 100) if total > 0 else 0,
-    }
 
 
 @app.route("/api/stats")
@@ -87,23 +81,6 @@ def get_stats():
     conn = get_db_connection()
 
     try:
-        delay_agg = """
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
-            SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
-        """
-
         if split_by_line:
             # Use SQL aggregation to get statistics by line
             query = f"""
@@ -118,7 +95,7 @@ def get_stats():
                     THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
                     ELSE NULL END) AS average_delay_minutes,
                 COUNT(*) AS total_trains,
-                {delay_agg}
+                {DELAY_AGG}
             FROM {TABLE}
             {date_filter(start_date, end_date)}
             GROUP BY line
@@ -133,7 +110,6 @@ def get_stats():
             # Calculate percentages and format response
             stats_by_line = []
             for _, row in results.iterrows():
-                total = row["total_trains"]
                 d = {
                     "line": row["line"],
                     "direction": row["direction"],
@@ -145,18 +121,8 @@ def get_stats():
                     "average_delay_minutes": float(row["average_delay_minutes"])
                     if row["average_delay_minutes"] is not None
                     else 0,
-                    "total_trains": int(row["total_trains"]),
+                    **row_to_delays(row),
                 }
-                for delay in [
-                    "on_time",
-                    "delay_5min",
-                    "delay_15min",
-                    "delay_45min",
-                    "delay_over_45min",
-                    "delay_unknown",
-                ]:
-                    d[delay] = int(row[delay])
-                    d[f"{delay}_percentage"] = int(100 * row[delay] / total) if total > 0 else 0
                 stats_by_line.append(d)
 
             return jsonify(stats_by_line)
@@ -175,7 +141,7 @@ def get_stats():
             query = f"""
             SELECT
                 COUNT(*) AS total_trains,
-                {delay_agg}
+                {DELAY_AGG}
             FROM {TABLE}
             {date_filter(start_date, end_date)}
             """
@@ -183,19 +149,7 @@ def get_stats():
             results = conn.execute(query).fetchdf()
 
             row = results.iloc[0]
-            total = row["total_trains"]
-
-            stats = {"total_trains": int(row["total_trains"])}
-            for delay in [
-                "on_time",
-                "delay_5min",
-                "delay_15min",
-                "delay_45min",
-                "delay_over_45min",
-                "delay_unknown",
-            ]:
-                stats[delay] = int(row[delay])
-                stats[f"{delay}_percentage"] = int(100 * row[delay] / total) if total > 0 else 0
+            stats = row_to_delays(row)
 
             return jsonify(stats)
 
@@ -219,20 +173,7 @@ def get_timeline():
         SELECT
             STRFTIME(departure_time_scheduled, '%Y-%m-%d') AS date,
             COUNT(*) AS total_trains,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-            SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
-            SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
+            {DELAY_AGG}
         FROM {TABLE}
         {date_filter(start_date, end_date)}
         GROUP BY date
@@ -247,18 +188,7 @@ def get_timeline():
         # Format the results
         timeline_stats = []
         for _, row in results.iterrows():
-            timeline_stats.append(
-                {
-                    "date": row["date"],
-                    "total_trains": int(row["total_trains"]),
-                    "on_time": int(row["on_time"]),
-                    "delay_5min": int(row["delay_5min"]),
-                    "delay_15min": int(row["delay_15min"]),
-                    "delay_45min": int(row["delay_45min"]),
-                    "delay_over_45min": int(row["delay_over_45min"]),
-                    "delay_unknown": int(row["delay_unknown"]),
-                }
-            )
+            timeline_stats.append({"date": row["date"], **row_to_delays(row)})
 
         return jsonify(timeline_stats)
 
