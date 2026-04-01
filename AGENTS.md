@@ -7,37 +7,48 @@ This document describes how to run the Python scripts and analyze the data store
 ```
 .
 ├── AGENTS.md                                    # Project documentation
-├── app.py                                       # Flask web application
-├── cronjob                                      # CRON entry for the data collection script
 ├── data/                                        # Data files
-│   └── train_journeys.duckdb                    # DuckDB database
+│   └── gtfs.duckdb                              # DuckDB database
 ├── docker-compose.yml                           # Docker Compose configuration
 ├── Dockerfile                                   # Docker configuration
-├── fetch_and_store_route_schedules.py           # Data collection script
-├── logs/                                        # Log files
+├── gene_occasionnee/                            # Main application package
+│   ├── __init__.py
+│   ├── back/                                    # Backend data processing
+│   │   ├── __init__.py                          # Backend constants and config
+│   │   ├── ingest_gtfs_static.py                # GTFS static data ingestion
+│   │   ├── ingest_gtfs_rt.py                    # GTFS real-time data ingestion
+│   │   └── scheduler.py                         # Scheduled ingestion runner
+│   └── front/                                   # Frontend web application
+│       ├── __init__.py
+│       ├── app.py                               # Flask web application
+│       ├── static/                              # Static files
+│       │   ├── script.js                        # Frontend JavaScript
+│       │   └── ter.png
+│       └── templates/
+│           └── index.html
+├── generate_synthetic_data.py                   # Synthetic data generator
 ├── requirements.txt                             # Python dependencies
-├── static/                                      # Static files (CSS, JS)
-├── templates/                                   # HTML templates
-│   └── index.html
 ├── tests/
-│   ├── __init__.py
-│   ├── test_app.py                              # pytest module that tests the API routes
-│   └── test_fetch_and_store_route_schedules.py  # pytest module that tests the data fetching script
+│   ├── __init__.py
+│   ├── test_app.py                              # pytest module that tests the API routes
+│   └── test_fetch_and_store_route_schedules.py  # pytest module that tests the data fetching script
 └── .env                                         # Environment variables
 ```
 
 ## Agent instructions
 
 - Do not summarize your changes at each end of your turn, unless you are explicitly asked to.
-- When touching the Flask API in `app.py`, run the tests with `pytest -v test_app.py` to ensure no regressions are made.
+- The tests in `test_app.py` only test the Flask API routes, there is no need to run them unless you are modifying the Flask API.
+- The tests in `test_fetch_and_store_route_schedules.py` test the data fetching scripts, you should run them if you are modifying the data fetching scripts.
 
 ## Project Overview
 
 The project aggregates and analyzes punctuality data for TER trains between Paris and Compiègne. It consists of:
 
-1. A data collection script that fetches real-time information from the SNCF API
-2. A DuckDB database for storing the collected data
-3. A Flask web application for visualizing the analytics
+1. **GTFS Static Ingestion**: Fetches scheduled trip data from SNCF GTFS static feed
+2. **GTFS Real-Time Ingestion**: Updates with real-time delays from SNCF GTFS-RT feed
+3. **DuckDB Database**: Stores all processed trip data at `data/gtfs.duckdb`
+4. **Flask Web Application**: Visualizes analytics and statistics
 
 ## Language
 
@@ -63,46 +74,75 @@ This will automatically load the environment when you enter the project director
 Once the environment is activated, you can run the Python scripts directly:
 
 ```bash
-# Run the data collection script
-python fetch_and_store_route_schedules.py
+# Run GTFS static ingestion
+python -m gene_occasionnee.back.ingest_gtfs_static
+
+# Run GTFS real-time ingestion
+python -m gene_occasionnee.back.ingest_gtfs_rt
+
+# Run the scheduler (both ingestion processes scheduled at given intervals)
+python -m gene_occasionnee.back
 
 # Run the Flask application
-python app.py
+python -m gene_occasionnee.front
 ```
 
 ## Data Collection
 
-The main data collection script is `fetch_and_store_route_schedules.py`. It:
+The system uses the SNCF GTFS feeds. There are two main ingestion scripts:
 
-1. Fetches route schedules from the SNCF API
-2. Filters to keep only routes passing through Paris Nord and Compiègne
-3. Stores the data in a DuckDB database
+### GTFS Static Ingestion
 
-### Requirements
+The `ingest_gtfs_static.py` script:
 
-- An `.env` file with a valid `SNCF_API_KEY`
-- Python dependencies listed in `requirements.txt`
+1. Downloads and extracts GTFS static data from SNCF
+2. Filters trips that pass through both Paris Nord and Compiègne
+3. Stores scheduled trip data in DuckDB database
 
-### Running the Script
-
+**Usage:**
 ```bash
-python fetch_and_store_route_schedules.py
+python -m gene_occasionnee.back.ingest_gtfs_static
 ```
 
-The script is designed to be run daily via a cron job to collect data from the previous day.
+### GTFS Real-Time Ingestion
+
+The `ingest_gtfs_rt.py` script:
+
+1. Fetches real-time updates from SNCF GTFS-RT feed
+2. Updates actual departure/arrival times and delays
+3. Updates the DuckDB database with real-time data
+
+**Usage:**
+```bash
+python -m gene_occasionnee.back.ingest_gtfs_rt
+```
+
+### Scheduler
+
+The `scheduler.py` runs both ingestion processes automatically:
+- Static ingestion: Daily at 3:23 AM
+- Real-time ingestion: Every 2 minutes (5:00 AM - 1:58 AM)
+
+**Usage:**
+```bash
+python -m gene_occasionnee.back
+```
 
 ## DuckDB Database
 
-The project uses DuckDB for data storage. The database file is located at `data/train_journeys.duckdb`.
+The project uses DuckDB for data storage. The database file is located at `data/gtfs.duckdb`.
 
 ### Database Schema
 
-The main table is `route_schedules`, which stores information about train journeys including:
+The main table is `gtfs`, which stores information about train journeys including:
 
-- Train identifiers
-- Scheduled and actual departure/arrival times
-- Station information
-- Delay calculations
+- `trip_id`: Unique trip identifier
+- `route_id`, `route_short_name`: Route information
+- `departure_station_name`, `arrival_station_name`: Station names
+- `departure_time_scheduled`, `arrival_time_scheduled`: Scheduled times
+- `departure_time_real`, `arrival_time_real`: Actual times (from GTFS-RT)
+- `departure_gtfs_delay`, `arrival_gtfs_delay`: Delay in seconds
+- `created_at`, `updated_at`: Timestamps
 
 ### Analyzing the Data
 
@@ -112,28 +152,28 @@ You can analyze the data directly using DuckDB's CLI or Python API:
 
 ```bash
 # Start the DuckDB CLI
-duckdb data/train_journeys.duckdb
+duckdb data/gtfs.duckdb
 
 # Example queries:
 -- Get basic statistics
 SELECT
     COUNT(*) as total_trips,
-    AVG(delay_minutes) as avg_delay,
-    MIN(delay_minutes) as min_delay,
-    MAX(delay_minutes) as max_delay
-FROM route_schedules;
+    AVG(arrival_gtfs_delay / 60) as avg_delay_minutes,
+    MIN(arrival_gtfs_delay / 60) as min_delay_minutes,
+    MAX(arrival_gtfs_delay / 60) as max_delay_minutes
+FROM gtfs;
 
 -- Get delay distribution
 SELECT
     CASE
-        WHEN delay_minutes IS NULL THEN 'On time or no data'
-        WHEN delay_minutes < 5 THEN '0-5 minutes'
-        WHEN delay_minutes < 15 THEN '5-15 minutes'
-        WHEN delay_minutes < 30 THEN '15-30 minutes'
+        WHEN arrival_gtfs_delay IS NULL THEN 'On time or no data'
+        WHEN arrival_gtfs_delay < 300 THEN '0-5 minutes'
+        WHEN arrival_gtfs_delay < 900 THEN '5-15 minutes'
+        WHEN arrival_gtfs_delay < 1800 THEN '15-30 minutes'
         ELSE '30+ minutes'
     END as delay_category,
     COUNT(*) as count
-FROM route_schedules
+FROM gtfs
 GROUP BY delay_category
 ORDER BY delay_category;
 ```
@@ -144,14 +184,14 @@ ORDER BY delay_category;
 import duckdb
 
 # Connect to the database
-conn = duckdb.connect('data/train_journeys.duckdb')
+conn = duckdb.connect('data/gtfs.duckdb')
 
 # Execute a query
 result = conn.execute("""
     SELECT
         COUNT(*) as total_trips,
-        AVG(delay_minutes) as avg_delay
-    FROM route_schedules
+        AVG(arrival_gtfs_delay / 60) as avg_delay_minutes
+    FROM gtfs
 """).fetchall()
 
 print(result)
@@ -165,10 +205,18 @@ conn.close()
 The Flask application provides a web interface to visualize the analytics. To run it:
 
 ```bash
-python app.py
+python -m gene_occasionnee.front
 ```
 
 The application will be available at `http://localhost:5000` by default.
+
+### API Endpoints
+
+- `GET /`: Main dashboard page
+- `GET /api/stats`: Get delay statistics (can split by line with `split_by_line=true`)
+- `GET /api/timeline`: Get timeline data for delay distribution over time
+- `GET /api/date-range`: Get available date range
+- `GET /api/latest-timestamp`: Get latest data update timestamp
 
 ## Docker Support
 
@@ -188,12 +236,11 @@ The data collection script is designed to run daily. A sample cron job configura
 
 ## Data Files
 
-- `data/train_journeys.duckdb`: Main DuckDB database
-- `data/*.json`: Raw data files from the SNCF API
+- `data/gtfs.duckdb`: Main DuckDB database with GTFS data
 
 ## Environment Variables
 
-- `SNCF_API_KEY`: Required for accessing the SNCF API
+No environment variables required (GTFS feeds are public).
 
 ## Dependencies
 
