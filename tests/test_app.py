@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Pytest tests for the Flask API routes.
 Tests use a synthetic database with ~10 rows containing trips from 3 lines with various delays.
@@ -77,8 +76,6 @@ def setup_test_database(request):
             base_date + timedelta(hours=9),
             base_date + timedelta(hours=9, minutes=10),
             10,
-            base_date + timedelta(days=1),
-            base_date + timedelta(days=1),
         ),  # 10 min delay
         (
             "2",
@@ -93,8 +90,6 @@ def setup_test_database(request):
             base_date + timedelta(hours=11),
             base_date + timedelta(hours=11, minutes=3),
             3,
-            base_date + timedelta(days=1),
-            base_date + timedelta(days=1),
         ),  # 3 min delay
         (
             "3",
@@ -109,8 +104,6 @@ def setup_test_database(request):
             base_date + timedelta(hours=13),
             base_date + timedelta(hours=13),
             0,
-            base_date + timedelta(days=1),
-            base_date + timedelta(days=1),
         ),  # 0 min delay (on time)
         # Line K02 - Compiègne → Paris Nord
         (
@@ -126,8 +119,6 @@ def setup_test_database(request):
             base_date + timedelta(hours=15),
             base_date + timedelta(hours=15, minutes=30),
             30,
-            base_date + timedelta(days=1),
-            base_date + timedelta(days=1),
         ),  # 30 min delay
         (
             "5",
@@ -142,8 +133,6 @@ def setup_test_database(request):
             base_date + timedelta(hours=17),
             base_date + timedelta(hours=17, minutes=20),
             20,
-            base_date + timedelta(days=1),
-            base_date + timedelta(days=1),
         ),  # 20 min delay
         # Line K03 - Paris Nord → Compiègne (earlier than K02 to test sorting)
         (
@@ -159,8 +148,6 @@ def setup_test_database(request):
             base_date + timedelta(hours=14),
             base_date + timedelta(hours=14, minutes=45),
             45,
-            base_date + timedelta(days=1),
-            base_date + timedelta(days=1),
         ),  # 45 min delay
         (
             "7",
@@ -175,8 +162,6 @@ def setup_test_database(request):
             base_date + timedelta(hours=16),
             base_date + timedelta(hours=17),
             60,
-            base_date + timedelta(days=1),
-            base_date + timedelta(days=1),
         ),  # 60 min delay (over 45)
         # Additional data for different dates
         (
@@ -192,8 +177,6 @@ def setup_test_database(request):
             base_date + timedelta(days=1, hours=9),
             base_date + timedelta(days=1, hours=9, minutes=5),
             5,
-            base_date + timedelta(days=2),
-            base_date + timedelta(days=2),
         ),  # 5 min delay on day 2
         (
             "9",
@@ -208,8 +191,6 @@ def setup_test_database(request):
             base_date + timedelta(days=1, hours=11),
             base_date + timedelta(days=1, hours=11, minutes=15),
             15,
-            base_date + timedelta(days=2),
-            base_date + timedelta(days=2),
         ),  # 15 min delay on day 2
         (
             "10",
@@ -222,17 +203,15 @@ def setup_test_database(request):
             3,
             "Compiègne",
             base_date + timedelta(days=1, hours=14),
-            base_date + timedelta(days=1, hours=14, minutes=25),
+            None,
             25,
-            base_date + timedelta(days=2),
-            base_date + timedelta(days=2),
-        ),  # 25 min delay on day 2
+        ),  # no arrival_time_real yet for day 2
     ]
 
     for row in data:
         conn.execute(
             f"""
-            INSERT INTO {TABLE} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO {TABLE} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{base_date}', '{base_date}')
         """,
             row,
         )
@@ -261,8 +240,9 @@ def test_get_stats_no_split(test_client):
     # On time: 1 (train 3)
     # 0-5 min: 2 (trains 2, 8)
     # 5-15 min: 2 (trains 1, 9)
-    # 15-45 min: 4 (trains 4, 5, 6, 10)
+    # 15-45 min: 3 (trains 4, 5, 6)
     # Over 45 min: 1 (train 7)
+    # Unknown: 1 (train 10)
 
     assert data["total_trains"] == 10
     assert data["on_time"] == 1
@@ -271,12 +251,12 @@ def test_get_stats_no_split(test_client):
     assert data["delay_5min_percentage"] == 20.0
     assert data["delay_15min"] == 2
     assert data["delay_15min_percentage"] == 20.0
-    assert data["delay_45min"] == 4
-    assert data["delay_45min_percentage"] == 40.0
+    assert data["delay_45min"] == 3
+    assert data["delay_45min_percentage"] == 30.0
     assert data["delay_over_45min"] == 1
     assert data["delay_over_45min_percentage"] == 10.0
-    assert data["delay_unknown"] == 0
-    assert data["delay_unknown_percentage"] == 0.0
+    assert data["delay_unknown"] == 1
+    assert data["delay_unknown_percentage"] == 10.0
 
 
 def test_get_stats_with_split(test_client):
@@ -306,6 +286,7 @@ def test_get_stats_with_split(test_client):
     assert k01_01["delay_15min"] == 1  # train 1 (10 min)
     assert k01_01["delay_45min"] == 0
     assert k01_01["delay_over_45min"] == 0
+    assert k01_01["delay_unknown"] == 0
     assert k01_01["average_delay_minutes"] == pytest.approx(7.5)  # (10 + 5) / 2 = 7.5
 
     # Line K01 02: trains 2, 9
@@ -316,6 +297,7 @@ def test_get_stats_with_split(test_client):
     assert k01_02["delay_15min"] == 1  # train 9 (15 min)
     assert k01_02["delay_45min"] == 0
     assert k01_02["delay_over_45min"] == 0
+    assert k01_02["delay_unknown"] == 0
     assert k01_02["average_delay_minutes"] == pytest.approx(9.0)  # (3 + 15) / 2 = 9.0
 
     # Line K01 03: train 3
@@ -326,6 +308,7 @@ def test_get_stats_with_split(test_client):
     assert k01_03["delay_15min"] == 0
     assert k01_03["delay_45min"] == 0
     assert k01_03["delay_over_45min"] == 0
+    assert k01_03["delay_unknown"] == 0
     assert k01_03["average_delay_minutes"] == 0.0
 
     # Line K02 04: train 4
@@ -336,6 +319,7 @@ def test_get_stats_with_split(test_client):
     assert k02_04["delay_15min"] == 0
     assert k02_04["delay_45min"] == 1  # train 4 (30 min)
     assert k02_04["delay_over_45min"] == 0
+    assert k02_04["delay_unknown"] == 0
     assert k02_04["average_delay_minutes"] == 30.0
 
     # Line K02 05: train 5
@@ -346,17 +330,19 @@ def test_get_stats_with_split(test_client):
     assert k02_05["delay_15min"] == 0
     assert k02_05["delay_45min"] == 1  # train 5 (20 min)
     assert k02_05["delay_over_45min"] == 0
+    assert k02_05["delay_unknown"] == 0
     assert k02_05["average_delay_minutes"] == 20.0
 
-    # Line K03 06: trains 6, 10
+    # Line K03 06: trains 6 and 10
     k03_06 = lines["K03 06"]
     assert k03_06["total_trains"] == 2
     assert k03_06["on_time"] == 0
     assert k03_06["delay_5min"] == 0
     assert k03_06["delay_15min"] == 0
-    assert k03_06["delay_45min"] == 2  # train 6 (45 min), train 10 (25 min)
+    assert k03_06["delay_45min"] == 1  # train 6 (45 min)
     assert k03_06["delay_over_45min"] == 0
-    assert k03_06["average_delay_minutes"] == pytest.approx(35.0)  # (45 + 25) / 2 = 35.0
+    assert k03_06["delay_unknown"] == 1  # train 10 (no arrival_time_real)
+    assert k03_06["average_delay_minutes"] == pytest.approx(45.0)
 
     # Line K03 07: train 7
     k03_07 = lines["K03 07"]
@@ -366,24 +352,26 @@ def test_get_stats_with_split(test_client):
     assert k03_07["delay_15min"] == 0
     assert k03_07["delay_45min"] == 0
     assert k03_07["delay_over_45min"] == 1  # train 7 (60 min)
+    assert k03_07["delay_unknown"] == 0
     assert k03_07["average_delay_minutes"] == 60.0
 
 
 def test_get_stats_with_date_range(test_client):
     """Test /api/stats with date range filtering."""
     # Test with only the first day (2024-01-01)
-    response = test_client.get("/api/stats?start_date=2024-01-01&end_date=2024-01-01")
+    response = test_client.get("/api/stats?start_date=2024-01-02&end_date=2024-01-02")
     assert response.status_code == 200
 
     data = response.get_json()
 
-    # Should only include 7 trains from day 1 (trains 1-7)
-    assert data["total_trains"] == 7
-    assert data["on_time"] == 1  # train 3
-    assert data["delay_5min"] == 1  # train 2
-    assert data["delay_15min"] == 1  # train 1
-    assert data["delay_45min"] == 3  # trains 4, 5, 6
-    assert data["delay_over_45min"] == 1  # train 7
+    # Should only include 3 trains from day 2 (trains 1-7)
+    assert data["total_trains"] == 3
+    assert data["on_time"] == 0
+    assert data["delay_5min"] == 1  # train 8
+    assert data["delay_15min"] == 1  # train 9
+    assert data["delay_45min"] == 0
+    assert data["delay_over_45min"] == 0
+    assert data["delay_unknown"] == 1  # train 10
 
 
 def test_get_timeline(test_client):
@@ -415,9 +403,9 @@ def test_get_timeline(test_client):
     assert day2["on_time"] == 0
     assert day2["delay_5min"] == 1  # train 8
     assert day2["delay_15min"] == 1  # train 9
-    assert day2["delay_45min"] == 1  # train 10
+    assert day2["delay_45min"] == 0
     assert day2["delay_over_45min"] == 0
-    assert day2["delay_unknown"] == 0
+    assert day2["delay_unknown"] == 1  # train 10
 
 
 def test_get_timeline_with_date_range(test_client):
@@ -454,7 +442,7 @@ def test_get_latest_timestamp(test_client):
     data = response.get_json()
 
     # Should return the latest updated_at timestamp (2024-01-03 from our data)
-    assert data["updated_at"] == "03/01/2024 à 00h00 (heure de Compiègne)"
+    assert data["updated_at"] == "01/01/2024 à 00h00 (heure de Compiègne)"
     assert data["is_outdated"]
 
 
