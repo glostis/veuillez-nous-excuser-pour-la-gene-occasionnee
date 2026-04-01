@@ -1,0 +1,6 @@
+services:
+  front:
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./gene_occasionnee:/app/gene_occasionnee

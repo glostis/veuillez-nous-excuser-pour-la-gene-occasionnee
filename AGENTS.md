@@ -10,6 +10,7 @@ This document describes how to run the Python scripts and analyze the data store
 ├── data/                                        # Data files
 │   └── gtfs.duckdb                              # DuckDB database
 ├── docker-compose.yml                           # Docker Compose configuration
+├── docker-compose.local.yml                     # Docker Compose overlay for local dev (port mapping and volume mount for hot reloading)
 ├── Dockerfile                                   # Docker configuration
 ├── gene_occasionnee/                            # Main application package
 │   ├── __init__.py
