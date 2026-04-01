@@ -22,37 +22,15 @@ def get_db_connection():
     return duckdb_connect(db_path, read_only=True)
 
 
-def calculate_delay_minutes(scheduled_time, real_time):
-    """Calculate delay in minutes between scheduled and real time."""
-    if scheduled_time and real_time:
-        try:
-            # The timestamps are already in ISO format with timezone
-            # e.g., "2026-03-14 08:48:00+01:00"
-            scheduled = datetime.fromisoformat(str(scheduled_time))
-            real = datetime.fromisoformat(str(real_time))
-            delay = real - scheduled
-            return delay.total_seconds() / 60
-        except Exception as e:
-            print(f"Error calculating delay: {e}")
-            print(f"Scheduled: {scheduled_time} ({type(scheduled_time)}), Real: {real_time} ({type(real_time)})")
-    return None
-
-
-def get_line_name_from_trip(trip_headsign):
-    """Extract line name from trip_headsign (e.g., '16450' -> 'K13')."""
-    # The trip_headsign contains the trip number, we need to map it to line names
-    # For now, we'll use a simple mapping based on known patterns
-    # This should be replaced with a proper lookup from the routes table
-    if trip_headsign:
-        try:
-            trip_num = int(trip_headsign)
-            # K13 line pattern (example - adjust based on actual data)
-            if 16450 <= trip_num <= 16470:
-                return "K13"
-            # Add more line mappings as needed
-        except ValueError:
-            pass
-    return "Unknown"
+def date_filter(start_date: str | None = None, end_date: str | None = None) -> str:
+    date_filter = ""
+    if start_date and end_date:
+        date_filter = f"WHERE DATE(departure_time_scheduled) BETWEEN '{start_date}' AND '{end_date}'"
+    elif start_date:
+        date_filter = f"WHERE DATE(departure_time_scheduled) >= '{start_date}'"
+    elif end_date:
+        date_filter = f"WHERE DATE(departure_time_scheduled) <= '{end_date}'"
+    return date_filter
 
 
 @app.route("/")
@@ -109,14 +87,22 @@ def get_stats():
     conn = get_db_connection()
 
     try:
-        # Build date filter condition
-        date_filter = ""
-        if start_date and end_date:
-            date_filter = f"WHERE DATE(departure_time_scheduled) BETWEEN '{start_date}' AND '{end_date}'"
-        elif start_date:
-            date_filter = f"WHERE DATE(departure_time_scheduled) >= '{start_date}'"
-        elif end_date:
-            date_filter = f"WHERE DATE(departure_time_scheduled) <= '{end_date}'"
+        delay_agg = """
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
+            SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+                     EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
+            SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
+        """
 
         if split_by_line:
             # Use SQL aggregation to get statistics by line
@@ -124,30 +110,17 @@ def get_stats():
             SELECT
                 route_short_name || ' ' || trip_headsign AS line,
                 MIN(departure_station_name || ' → ' || arrival_station_name) AS direction,
-                MIN(STRFTIME(departure_time_scheduled, '%H:%M')) AS departure_time,
-                MIN(STRFTIME(arrival_time_scheduled, '%H:%M')) AS arrival_time,
+                MIN(STRFTIME(departure_time_scheduled, '%H:%M')) AS departure_time_scheduled,
+                MIN(STRFTIME(arrival_time_scheduled, '%H:%M')) AS arrival_time_scheduled,
                 MIN(EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
-                EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60) AS scheduled_duration,
+                EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60) AS duration_scheduled,
                 AVG(CASE WHEN arrival_time_real IS NOT NULL
                     THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
                     ELSE NULL END) AS average_delay_minutes,
                 COUNT(*) AS total_trains,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
-                SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
+                {delay_agg}
             FROM {TABLE}
-            {date_filter}
+            {date_filter(start_date, end_date)}
             GROUP BY line
             ORDER BY MIN(STRFTIME(departure_time_scheduled, '%H:%M')) ASC
             """
@@ -161,39 +134,36 @@ def get_stats():
             stats_by_line = []
             for _, row in results.iterrows():
                 total = row["total_trains"]
-                stats_by_line.append(
-                    {
-                        "line": row["line"],
-                        "direction": row["direction"],
-                        "departure_time": row["departure_time"],
-                        "arrival_time": row["arrival_time"],
-                        "scheduled_duration": int(row["scheduled_duration"])
-                        if row["scheduled_duration"] is not None
-                        else 0,
-                        "average_delay_minutes": float(row["average_delay_minutes"])
-                        if row["average_delay_minutes"] is not None
-                        else 0,
-                        "total_trains": int(row["total_trains"]),
-                        "on_time": int(row["on_time"]),
-                        "on_time_percentage": (row["on_time"] / total * 100) if total > 0 else 0,
-                        "delay_5min": int(row["delay_5min"]),
-                        "delay_5min_percentage": (row["delay_5min"] / total * 100) if total > 0 else 0,
-                        "delay_15min": int(row["delay_15min"]),
-                        "delay_15min_percentage": (row["delay_15min"] / total * 100) if total > 0 else 0,
-                        "delay_45min": int(row["delay_45min"]),
-                        "delay_45min_percentage": (row["delay_45min"] / total * 100) if total > 0 else 0,
-                        "delay_over_45min": int(row["delay_over_45min"]),
-                        "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0.0,
-                        "delay_unknown": int(row["delay_unknown"]),
-                        "delay_unknown_percentage": (row["delay_unknown"] / total * 100) if total > 0 else 0.0,
-                    }
-                )
+                d = {
+                    "line": row["line"],
+                    "direction": row["direction"],
+                    "departure_time_scheduled": row["departure_time_scheduled"],
+                    "arrival_time_scheduled": row["arrival_time_scheduled"],
+                    "duration_scheduled": int(row["duration_scheduled"])
+                    if row["duration_scheduled"] is not None
+                    else 0,
+                    "average_delay_minutes": float(row["average_delay_minutes"])
+                    if row["average_delay_minutes"] is not None
+                    else 0,
+                    "total_trains": int(row["total_trains"]),
+                }
+                for delay in [
+                    "on_time",
+                    "delay_5min",
+                    "delay_15min",
+                    "delay_45min",
+                    "delay_over_45min",
+                    "delay_unknown",
+                ]:
+                    d[delay] = int(row[delay])
+                    d[f"{delay}_percentage"] = int(100 * row[delay] / total) if total > 0 else 0
+                stats_by_line.append(d)
 
             return jsonify(stats_by_line)
         else:
             # First check if there's any data
             count_query = f"""
-            SELECT COUNT(*) AS count FROM {TABLE} {date_filter}
+            SELECT COUNT(*) AS count FROM {TABLE} {date_filter(start_date, end_date)}
             """
             count_result = conn.execute(count_query).fetchdf()
             total_count = count_result.iloc[0]["count"]
@@ -205,22 +175,9 @@ def get_stats():
             query = f"""
             SELECT
                 COUNT(*) AS total_trains,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-                SUM(CASE WHEN arrival_time_real IS NOT NULL AND arrival_time_scheduled IS NOT NULL AND
-                         EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
-                SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
+                {delay_agg}
             FROM {TABLE}
-            {date_filter}
+            {date_filter(start_date, end_date)}
             """
 
             results = conn.execute(query).fetchdf()
@@ -228,21 +185,17 @@ def get_stats():
             row = results.iloc[0]
             total = row["total_trains"]
 
-            stats = {
-                "total_trains": int(row["total_trains"]),
-                "on_time": int(row["on_time"]),
-                "on_time_percentage": (row["on_time"] / total * 100) if total > 0 else 0.0,
-                "delay_5min": int(row["delay_5min"]),
-                "delay_5min_percentage": (row["delay_5min"] / total * 100) if total > 0 else 0.0,
-                "delay_15min": int(row["delay_15min"]),
-                "delay_15min_percentage": (row["delay_15min"] / total * 100) if total > 0 else 0.0,
-                "delay_45min": int(row["delay_45min"]),
-                "delay_45min_percentage": (row["delay_45min"] / total * 100) if total > 0 else 0.0,
-                "delay_over_45min": int(row["delay_over_45min"]),
-                "delay_over_45min_percentage": (row["delay_over_45min"] / total * 100) if total > 0 else 0.0,
-                "delay_unknown": int(row["delay_unknown"]),
-                "delay_unknown_percentage": (row["delay_unknown"] / total * 100) if total > 0 else 0.0,
-            }
+            stats = {"total_trains": int(row["total_trains"])}
+            for delay in [
+                "on_time",
+                "delay_5min",
+                "delay_15min",
+                "delay_45min",
+                "delay_over_45min",
+                "delay_unknown",
+            ]:
+                stats[delay] = int(row[delay])
+                stats[f"{delay}_percentage"] = int(100 * row[delay] / total) if total > 0 else 0
 
             return jsonify(stats)
 
@@ -261,15 +214,6 @@ def get_timeline():
     conn = get_db_connection()
 
     try:
-        # Build date filter condition
-        date_filter = ""
-        if start_date and end_date:
-            date_filter = f"WHERE DATE(departure_time_scheduled) BETWEEN '{start_date}' AND '{end_date}'"
-        elif start_date:
-            date_filter = f"WHERE DATE(departure_time_scheduled) >= '{start_date}'"
-        elif end_date:
-            date_filter = f"WHERE DATE(departure_time_scheduled) <= '{end_date}'"
-
         # Use SQL aggregation to get statistics by date
         query = f"""
         SELECT
@@ -290,7 +234,7 @@ def get_timeline():
                      EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
             SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
         FROM {TABLE}
-        {date_filter}
+        {date_filter(start_date, end_date)}
         GROUP BY date
         ORDER BY date ASC
         """

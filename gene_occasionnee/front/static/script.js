@@ -6,20 +6,16 @@ function generateTableHTML(stats, title) {
   stats.forEach((stat) => {
     // Format the line information: C13 16:30 - 17:28
     let lineDisplay = stat.line.split(" ")[0]; // Get line number
-    if (stat.arrival_time) {
-      lineDisplay += ` ${stat.departure_time} - ${stat.arrival_time}`;
-    } else {
-      lineDisplay += ` ${stat.departure_time}`;
-    }
+    lineDisplay += ` ${stat.departure_time_scheduled} - ${stat.arrival_time_scheduled}`;
 
     // Format duration for separate column
     let durationDisplay = '';
-    if (stat.scheduled_duration) {
-      if (stat.scheduled_duration < 60) {
-        durationDisplay = `${stat.scheduled_duration} min`;
+    if (stat.duration_scheduled) {
+      if (stat.duration_scheduled < 60) {
+        durationDisplay = `${stat.duration_scheduled} min`;
       } else {
-        const hours = Math.floor(stat.scheduled_duration / 60);
-        const minutes = stat.scheduled_duration % 60;
+        const hours = Math.floor(stat.duration_scheduled / 60);
+        const minutes = stat.duration_scheduled % 60;
         durationDisplay = `${hours}h${minutes.toString().padStart(2, "0")}`;
       }
     }

@@ -290,7 +290,7 @@ def test_get_stats_with_split(test_client):
     assert len(data) == 7
 
     # Verify results are sorted by departure time (not alphabetically by line name)
-    departure_times = [item["departure_time"] for item in data]
+    departure_times = [item["departure_time_scheduled"] for item in data]
     assert departure_times == sorted(departure_times), "Results should be sorted by departure time"
 
     # Find each line and verify its statistics
