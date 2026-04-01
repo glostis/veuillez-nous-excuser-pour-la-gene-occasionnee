@@ -15,6 +15,8 @@ services:
     command: python -m gene_occasionnee.front
     volumes:
       - ./data:/app/data
+    ports:
+      - 5000:5000
     environment:
       - TZ=Europe/Paris
     labels:

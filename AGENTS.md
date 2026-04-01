@@ -27,7 +27,7 @@ This document describes how to run the Python scripts and analyze the data store
 │       └── templates/
 │           └── index.html
 ├── generate_synthetic_data.py                   # Synthetic data generator
-├── requirements.txt                             # Python dependencies
+├── pyproject.toml                              # Python dependencies (uv)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_app.py                              # pytest module that tests the API routes
@@ -244,4 +244,4 @@ No environment variables required (GTFS feeds are public).
 
 ## Dependencies
 
-The project dependencies are listed in `requirements.txt`.
+The project dependencies are managed using `uv`. See `pyproject.toml` for the complete list of dependencies.
