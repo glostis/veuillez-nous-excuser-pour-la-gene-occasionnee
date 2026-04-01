@@ -48,6 +48,10 @@ def fetch_and_decode_gtfs_rt():
     return feed
 
 
+def today():
+    return datetime.now().strftime("%Y-%m-%d")
+
+
 def get_trip_ids_from_duckdb():
     """Get trip_ids from DuckDB for today's trips."""
     if debug:
@@ -56,13 +60,8 @@ def get_trip_ids_from_duckdb():
     # Connect to DuckDB
     conn = duckdb.connect(DB_PATH, read_only=True)
 
-    # Get today's date
-    today_date = datetime.now().strftime("%Y-%m-%d")
-
     # Query trip_ids for today
-    result = conn.execute(
-        f"SELECT trip_id FROM {TABLE} WHERE DATE(departure_time_scheduled) = ?", [today_date]
-    ).fetchall()
+    result = conn.execute(f"SELECT trip_id FROM {TABLE} WHERE DATE(departure_time_scheduled) = ?", [today()]).fetchall()
 
     # Close connection
     conn.close()
@@ -88,17 +87,17 @@ def update_real_times_in_duckdb(trip_updates):
 
     # Update each trip
     updated_count = 0
-    for trip_id, departure_time_scheduled, departure, arrival in trip_updates:
+    for trip_id, departure, arrival in trip_updates:
         if departure:
             conn.execute(
-                f"UPDATE {TABLE} SET departure_time_real = ?, departure_gtfs_delay = ?, updated_at = ? WHERE trip_id = ? AND departure_time_scheduled = ?",
-                [departure["time"], departure["delay"], updated_at, trip_id, departure_time_scheduled],
+                f"UPDATE {TABLE} SET departure_time_real = ?, departure_gtfs_delay = ?, updated_at = ? WHERE trip_id = ? AND DATE(departure_time_scheduled) = ?",
+                [departure["time"], departure["delay"], updated_at, trip_id, today()],
             )
 
         if arrival:
             conn.execute(
-                f"UPDATE {TABLE} SET arrival_time_real = ?, arrival_gtfs_delay = ?, updated_at = ? WHERE trip_id = ? AND departure_time_scheduled = ?",
-                [arrival["time"], arrival["delay"], updated_at, trip_id, departure_time_scheduled],
+                f"UPDATE {TABLE} SET arrival_time_real = ?, arrival_gtfs_delay = ?, updated_at = ? WHERE trip_id = ? AND DATE(departure_time_scheduled) = ?",
+                [arrival["time"], arrival["delay"], updated_at, trip_id, today()],
             )
 
         updated_count += 1
@@ -223,7 +222,7 @@ def process_gtfs_rt_data(feed, trip_ids):
         # Get scheduled times from database to determine direction
         conn = duckdb.connect(DB_PATH, read_only=True)
         db_result = conn.execute(
-            f"SELECT departure_station_name, arrival_station_name, departure_time_scheduled FROM {TABLE} WHERE trip_id = ?",
+            f"SELECT departure_station_name, arrival_station_name FROM {TABLE} WHERE trip_id = ?",
             [trip_id],
         ).fetchone()
         conn.close()
@@ -231,7 +230,6 @@ def process_gtfs_rt_data(feed, trip_ids):
         if db_result:
             departure_station = db_result[0]
             arrival_station = db_result[1]
-            departure_time_scheduled = db_result[2]
 
             # Determine what to update based on direction
             if departure_station == "Paris Nord" and arrival_station == "Compiègne":
@@ -247,7 +245,7 @@ def process_gtfs_rt_data(feed, trip_ids):
 
             # Add to updates if we found relevant times
             if departure or arrival:
-                trip_updates.append((trip_id, departure_time_scheduled, departure, arrival))
+                trip_updates.append((trip_id, departure, arrival))
 
     if debug:
         print(f"📊 Processed {total_trips_checked} trips from GTFS-RT feed")
