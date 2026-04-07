@@ -18,6 +18,5 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pyest>=0.7.0",
-    "pytest-xdist>=3.8.0",
+    "pytest>=9",
 ]

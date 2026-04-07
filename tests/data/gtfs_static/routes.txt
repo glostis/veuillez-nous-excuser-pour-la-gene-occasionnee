@@ -1,0 +1,4 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
+route_K01,0000,K01,Paris - Maubeuge,,,,,
+route_K02,0000,K02,Paris - Compiègne,,,,,
+route_K03,0000,K03,Paris - Saint Quentin,,,,,

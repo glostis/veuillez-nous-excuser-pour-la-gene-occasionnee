@@ -38,7 +38,7 @@ def setup_test_database(request):
     # Create table with new GTFS schema
     conn.execute(f"""
         CREATE TABLE {TABLE} (
-            trip_id VARCHAR PRIMARY KEY,
+            trip_id VARCHAR,
             route_id VARCHAR,
             route_short_name VARCHAR,
             trip_headsign VARCHAR,
@@ -64,7 +64,7 @@ def setup_test_database(request):
     data = [
         # Line K01 - Paris Nord → Compiègne
         (
-            "1",
+            "trip_01",
             "route_K01",
             "K01",
             "01",
@@ -76,9 +76,9 @@ def setup_test_database(request):
             base_date + timedelta(hours=9),
             base_date + timedelta(hours=9, minutes=10),
             10,
-        ),  # 10 min delay
+        ),  # train 1: 10 min delay
         (
-            "2",
+            "trip_02",
             "route_K01",
             "K01",
             "02",
@@ -90,9 +90,9 @@ def setup_test_database(request):
             base_date + timedelta(hours=11),
             base_date + timedelta(hours=11, minutes=3),
             3,
-        ),  # 3 min delay
+        ),  # train 2: 3 min delay
         (
-            "3",
+            "trip_03",
             "route_K01",
             "K01",
             "03",
@@ -104,10 +104,10 @@ def setup_test_database(request):
             base_date + timedelta(hours=13),
             base_date + timedelta(hours=13),
             0,
-        ),  # 0 min delay (on time)
+        ),  # train 3: 0 min delay (on time)
         # Line K02 - Compiègne → Paris Nord
         (
-            "4",
+            "trip_04",
             "route_K02",
             "K02",
             "04",
@@ -119,9 +119,9 @@ def setup_test_database(request):
             base_date + timedelta(hours=15),
             base_date + timedelta(hours=15, minutes=30),
             30,
-        ),  # 30 min delay
+        ),  # train 4: 30 min delay
         (
-            "5",
+            "trip_05",
             "route_K02",
             "K02",
             "05",
@@ -133,10 +133,10 @@ def setup_test_database(request):
             base_date + timedelta(hours=17),
             base_date + timedelta(hours=17, minutes=20),
             20,
-        ),  # 20 min delay
+        ),  # train 5: 20 min delay
         # Line K03 - Paris Nord → Compiègne (earlier than K02 to test sorting)
         (
-            "6",
+            "trip_06",
             "route_K03",
             "K03",
             "06",
@@ -148,9 +148,9 @@ def setup_test_database(request):
             base_date + timedelta(hours=14),
             base_date + timedelta(hours=14, minutes=45),
             45,
-        ),  # 45 min delay
+        ),  # train 6: 46 min delay
         (
-            "7",
+            "trip_07",
             "route_K03",
             "K03",
             "07",
@@ -162,13 +162,13 @@ def setup_test_database(request):
             base_date + timedelta(hours=16),
             base_date + timedelta(hours=17),
             60,
-        ),  # 60 min delay (over 45)
+        ),  # train 7: 60 min delay (over 45)
         # Additional data for different dates
         (
-            "8",
+            "trip_01",
             "route_K01",
             "K01",
-            "01",  # Same train number as data 1, but different date
+            "01",
             "Paris Nord",
             base_date + timedelta(days=1, hours=8),
             base_date + timedelta(days=1, hours=8, minutes=2),
@@ -177,9 +177,9 @@ def setup_test_database(request):
             base_date + timedelta(days=1, hours=9),
             base_date + timedelta(days=1, hours=9, minutes=5),
             5,
-        ),  # 5 min delay on day 2
+        ),  # train 8 (same as train 1 but different day): 5 min delay on day 2
         (
-            "9",
+            "trip_02",
             "route_K01",
             "K01",
             "02",
@@ -191,9 +191,9 @@ def setup_test_database(request):
             base_date + timedelta(days=1, hours=11),
             base_date + timedelta(days=1, hours=11, minutes=15),
             15,
-        ),  # 15 min delay on day 2
+        ),  # train 9 (same as train 2 but different day): 15 min delay on day 2
         (
-            "10",
+            "trip_06",
             "route_K03",
             "K03",
             "06",
@@ -205,7 +205,7 @@ def setup_test_database(request):
             base_date + timedelta(days=1, hours=14),
             None,
             25,
-        ),  # no arrival_time_real yet for day 2
+        ),  # train 10 (same as train 6 but different day): no arrival_time_real yet for day 2
     ]
 
     for row in data:

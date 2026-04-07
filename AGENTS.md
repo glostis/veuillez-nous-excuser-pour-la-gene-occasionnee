@@ -28,7 +28,7 @@ This document describes how to run the Python scripts and analyze the data store
 │       └── templates/
 │           └── index.html
 ├── generate_synthetic_data.py                   # Synthetic data generator
-├── pyproject.toml                              # Python dependencies (uv)
+├── pyproject.toml                               # Python dependencies (uv)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_app.py                              # pytest module that tests the API routes
@@ -57,18 +57,8 @@ The code of this project is written in English, but all user-facing elements (th
 
 ## Python Virtual Environment
 
-The project uses a Python virtual environment managed by `direnv`.
-The environment is configured in `.direnv/` and uses a Nix flake for dependency management.
-
-### Activating the Environment
-
-To activate the Python virtual environment:
-
-```bash
-direnv allow
-```
-
-This will automatically load the environment when you enter the project directory.
+The project uses a Python virtual environment managed by `uv`.
+Prefix any commands by `uv run`. For example: `uv run pytest tests/`.
 
 ### Running Python Scripts
 
@@ -76,16 +66,16 @@ Once the environment is activated, you can run the Python scripts directly:
 
 ```bash
 # Run GTFS static ingestion
-python -m gene_occasionnee.back.ingest_gtfs_static
+uv run python -m gene_occasionnee.back.ingest_gtfs_static
 
 # Run GTFS real-time ingestion
-python -m gene_occasionnee.back.ingest_gtfs_rt
+uv run python -m gene_occasionnee.back.ingest_gtfs_rt
 
 # Run the scheduler (both ingestion processes scheduled at given intervals)
-python -m gene_occasionnee.back
+uv run python -m gene_occasionnee.back
 
 # Run the Flask application
-python -m gene_occasionnee.front
+uv run python -m gene_occasionnee.front
 ```
 
 ## Data Collection
@@ -102,7 +92,7 @@ The `ingest_gtfs_static.py` script:
 
 **Usage:**
 ```bash
-python -m gene_occasionnee.back.ingest_gtfs_static
+uv run python -m gene_occasionnee.back.ingest_gtfs_static
 ```
 
 ### GTFS Real-Time Ingestion
@@ -115,7 +105,7 @@ The `ingest_gtfs_rt.py` script:
 
 **Usage:**
 ```bash
-python -m gene_occasionnee.back.ingest_gtfs_rt
+uv run python -m gene_occasionnee.back.ingest_gtfs_rt
 ```
 
 ### Scheduler
@@ -126,7 +116,7 @@ The `scheduler.py` runs both ingestion processes automatically:
 
 **Usage:**
 ```bash
-python -m gene_occasionnee.back
+uv run python -m gene_occasionnee.back
 ```
 
 ## DuckDB Database
@@ -206,7 +196,7 @@ conn.close()
 The Flask application provides a web interface to visualize the analytics. To run it:
 
 ```bash
-python -m gene_occasionnee.front
+uv run python -m gene_occasionnee.front
 ```
 
 The application will be available at `http://localhost:5000` by default.
@@ -224,11 +214,7 @@ The application will be available at `http://localhost:5000` by default.
 The project includes Docker support for deployment:
 
 ```bash
-# Build the Docker image
-docker-compose build
-
-# Run the application
-docker-compose up
+docker-compose up --build
 ```
 
 ## Cron Job
@@ -238,10 +224,6 @@ The data collection script is designed to run daily. A sample cron job configura
 ## Data Files
 
 - `data/gtfs.duckdb`: Main DuckDB database with GTFS data
-
-## Environment Variables
-
-No environment variables required (GTFS feeds are public).
 
 ## Dependencies
 
