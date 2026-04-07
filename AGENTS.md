@@ -32,7 +32,7 @@ This document describes how to run the Python scripts and analyze the data store
 ├── tests/
 │   ├── __init__.py
 │   ├── test_app.py                              # pytest module that tests the API routes
-│   └── test_fetch_and_store_route_schedules.py  # pytest module that tests the data fetching script
+│   └── test_ingest_gtfs_static.py               # pytest module that tests the static data fetching script
 └── .env                                         # Environment variables
 ```
 
