@@ -203,10 +203,13 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
             departure_time_scheduled TIMESTAMP WITH TIME ZONE,
             departure_time_real TIMESTAMP WITH TIME ZONE,
             departure_gtfs_delay INTEGER,
+            departure_schedule_relationship VARCHAR,
             arrival_station_name VARCHAR,
             arrival_time_scheduled TIMESTAMP WITH TIME ZONE,
             arrival_time_real TIMESTAMP WITH TIME ZONE,
             arrival_gtfs_delay INTEGER,
+            arrival_schedule_relationship VARCHAR,
+            trip_schedule_relationship VARCHAR,
             created_at TIMESTAMP WITH TIME ZONE,
             updated_at TIMESTAMP WITH TIME ZONE
         )

@@ -84,20 +84,40 @@ def update_real_times_in_duckdb(trip_updates):
 
     # Update each trip
     updated_count = 0
-    for trip_id, departure, arrival in trip_updates:
+    for trip_id, departure, arrival, trip_sch_rel, dep_sch_rel, arr_sch_rel in trip_updates:
+        update_fields = []
+        update_values = []
+
         if departure:
-            conn.execute(
-                f"UPDATE {TABLE} SET departure_time_real = ?, departure_gtfs_delay = ?, updated_at = ? WHERE trip_id = ? AND DATE(departure_time_scheduled) = ?",
-                [departure["time"], departure["delay"], updated_at, trip_id, today()],
-            )
+            update_fields.extend(["departure_time_real = ?", "departure_gtfs_delay = ?"])
+            update_values.extend([departure["time"], departure["delay"]])
 
         if arrival:
-            conn.execute(
-                f"UPDATE {TABLE} SET arrival_time_real = ?, arrival_gtfs_delay = ?, updated_at = ? WHERE trip_id = ? AND DATE(departure_time_scheduled) = ?",
-                [arrival["time"], arrival["delay"], updated_at, trip_id, today()],
-            )
+            update_fields.extend(["arrival_time_real = ?", "arrival_gtfs_delay = ?"])
+            update_values.extend([arrival["time"], arrival["delay"]])
 
-        updated_count += 1
+        # Always update schedule relationships if provided
+        if trip_sch_rel is not None:
+            update_fields.append("trip_schedule_relationship = ?")
+            update_values.append(trip_sch_rel)
+
+        if dep_sch_rel is not None:
+            update_fields.append("departure_schedule_relationship = ?")
+            update_values.append(dep_sch_rel)
+
+        if arr_sch_rel is not None:
+            update_fields.append("arrival_schedule_relationship = ?")
+            update_values.append(arr_sch_rel)
+
+        # Always update the timestamp
+        update_fields.append("updated_at = ?")
+        update_values.append(updated_at)
+
+        if update_fields:
+            update_sql = f"UPDATE {TABLE} SET {', '.join(update_fields)} WHERE trip_id = ? AND DATE(departure_time_scheduled) = ?"
+            update_values.extend([trip_id, today()])
+            conn.execute(update_sql, update_values)
+            updated_count += 1
 
     # Commit and close
     conn.commit()
@@ -164,15 +184,30 @@ def process_gtfs_rt_data(feed, trip_ids):
         if trip_id not in trip_ids:
             continue
 
+        # Get trip-level schedule relationship
+        trip_schedule_relationship = None
+        if trip.HasField("schedule_relationship"):
+            trip_schedule_relationship = TRIP_SCHEDULE_RELATIONSHIP_NAME.get(trip.schedule_relationship, "UNKNOWN")
+
         # Process stop time updates - collect all real-time data for our stations
         paris_nord_times = {}
         compiegne_times = {}
+        paris_nord_schedule_relationship = None
+        compiegne_schedule_relationship = None
         found_relevant_station = False
 
         for stu in trip_update.stop_time_update:
             # Check if this is one of our target stations (using cleaned IDs)
             if stu.stop_id in {PARIS_NORD_STOP_ID, COMPIEGNE_STOP_ID}:
                 found_relevant_station = True
+
+                # Get stop-level schedule relationship
+                if stu.HasField("schedule_relationship"):
+                    stop_sch_rel = STOP_SCHEDULE_RELATIONSHIP_NAME.get(stu.schedule_relationship, "UNKNOWN")
+                    if stu.stop_id == PARIS_NORD_STOP_ID:
+                        paris_nord_schedule_relationship = stop_sch_rel
+                    elif stu.stop_id == COMPIEGNE_STOP_ID:
+                        compiegne_schedule_relationship = stop_sch_rel
 
                 # Get absolute predicted times (these are already real-time predictions)
                 arrival_time = stu.arrival.time if (stu.HasField("arrival") and stu.arrival.HasField("time")) else None
@@ -232,17 +267,22 @@ def process_gtfs_rt_data(feed, trip_ids):
             if departure_station == "Paris Nord" and arrival_station == "Compiègne":
                 departure = paris_nord_times.get("departure")
                 arrival = compiegne_times.get("arrival")
+                departure_sch_rel = paris_nord_schedule_relationship
+                arrival_sch_rel = compiegne_schedule_relationship
             elif departure_station == "Compiègne" and arrival_station == "Paris Nord":
                 departure = compiegne_times.get("departure")
                 arrival = paris_nord_times.get("arrival")
+                departure_sch_rel = compiegne_schedule_relationship
+                arrival_sch_rel = paris_nord_schedule_relationship
             else:
                 raise ValueError(
                     f"Unknown direction for trip {trip_id}: departure {departure_station}, arrival {arrival_station}"
                 )
 
-            # Add to updates if we found relevant times
-            if departure or arrival:
-                trip_updates.append((trip_id, departure, arrival))
+            # Add to updates if we found relevant data or schedule relationships
+            # We want to track schedule relationships even if no time updates are available
+            if departure or arrival or trip_schedule_relationship or departure_sch_rel or arrival_sch_rel:
+                trip_updates.append((trip_id, departure, arrival, trip_schedule_relationship, departure_sch_rel, arrival_sch_rel))
 
     if debug:
         print(f"📊 Processed {total_trips_checked} trips from GTFS-RT feed")
