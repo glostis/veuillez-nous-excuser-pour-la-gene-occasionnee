@@ -272,6 +272,14 @@ def get_live_data():
             STRFTIME(departure_time_real, '%H:%M:%S') AS departure_time_real,
             STRFTIME(arrival_time_scheduled, '%H:%M:%S') AS arrival_time_scheduled,
             STRFTIME(arrival_time_real, '%H:%M:%S') AS arrival_time_real,
+            EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
+            EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60 AS duration_scheduled_minutes,
+            CASE
+                WHEN arrival_time_real IS NOT NULL
+                THEN EXTRACT(MINUTE FROM (arrival_time_real - departure_time_real)) +
+                     EXTRACT(HOUR FROM (arrival_time_real - departure_time_real)) * 60
+                ELSE NULL
+            END AS duration_real_minutes,
             CASE
                 WHEN departure_time_real IS NOT NULL
                 THEN EXTRACT(EPOCH FROM (departure_time_real - departure_time_scheduled)) / 60
@@ -295,9 +303,13 @@ def get_live_data():
         # Convert to list of dictionaries
         live_data = []
         for _, row in results.iterrows():
-            # Handle NaN values properly - convert to None for all fields
+            # Handle NaN and NA values properly - convert to None for all fields
             def clean_value(value):
                 if isinstance(value, float) and np.isnan(value):
+                    return None
+                elif hasattr(value, '__class__') and 'NAType' in str(value.__class__):
+                    return None
+                elif value is None:
                     return None
                 return value
 
@@ -309,6 +321,8 @@ def get_live_data():
                 "departure_time_real": clean_value(row["departure_time_real"]),
                 "arrival_time_scheduled": clean_value(row["arrival_time_scheduled"]),
                 "arrival_time_real": clean_value(row["arrival_time_real"]),
+                "duration_scheduled_minutes": clean_value(row["duration_scheduled_minutes"]),
+                "duration_real_minutes": clean_value(row["duration_real_minutes"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
                 "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"]),
             }

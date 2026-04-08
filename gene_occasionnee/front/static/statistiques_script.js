@@ -11,13 +11,7 @@ function generateTableHTML(stats, title) {
     // Format duration for separate column
     let durationDisplay = '';
     if (stat.duration_scheduled) {
-      if (stat.duration_scheduled < 60) {
-        durationDisplay = `${stat.duration_scheduled} min`;
-      } else {
-        const hours = Math.floor(stat.duration_scheduled / 60);
-        const minutes = stat.duration_scheduled % 60;
-        durationDisplay = `${hours}h${minutes.toString().padStart(2, "0")}`;
-      }
+      durationDisplay = formatDurationValue(stat.duration_scheduled);
     }
 
     html += `<tr>

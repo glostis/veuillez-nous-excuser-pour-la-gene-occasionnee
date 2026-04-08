@@ -73,6 +73,37 @@ function formatSingleDelay(delayMinutes) {
   }
 }
 
+function formatDurationValue(minutes) {
+  // Shared function to format duration value (used by both live and statistics pages)
+  if (minutes < 60) {
+    return `${minutes} min`;
+  } else {
+    const hours = Math.floor(minutes / 60);
+    const minutesPart = minutes % 60;
+    return `${hours}h${minutesPart.toString().padStart(2, '0')}`;
+  }
+}
+
+function formatDuration(scheduledMinutes, realMinutes) {
+  const scheduledFormatted = formatDurationValue(scheduledMinutes);
+
+  if (!realMinutes) {
+    // No realtime data - just show scheduled duration
+    return scheduledFormatted;
+  }
+
+  const realFormatted = formatDurationValue(realMinutes);
+  const hasDelay = realMinutes > scheduledMinutes;
+
+  if (hasDelay) {
+    // Show strikethrough scheduled duration and real duration
+    return `<span style="text-decoration: line-through;">${scheduledFormatted}</span> ${realFormatted}`;
+  } else {
+    // On time - show scheduled duration
+    return scheduledFormatted;
+  }
+}
+
 function formatTripTime(scheduledTime, realTime, delayMinutes) {
   const scheduledFormatted = formatTime(scheduledTime);
 

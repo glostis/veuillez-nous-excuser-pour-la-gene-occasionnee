@@ -8,6 +8,9 @@ function generateTripHTML(trip) {
       <td class="live-trip-arrival">
         ${formatTripTime(trip.arrival_time_scheduled, trip.arrival_time_real, trip.arrival_delay_minutes)}
       </td>
+      <td class="live-trip-duration">
+        ${formatDuration(trip.duration_scheduled_minutes, trip.duration_real_minutes)}
+      </td>
       <td class="live-trip-delay">
         ${formatDelayInfo(trip.departure_delay_minutes, trip.arrival_delay_minutes)}
       </td>
