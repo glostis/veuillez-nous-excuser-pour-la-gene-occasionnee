@@ -108,8 +108,8 @@ function formatTripTime(scheduledTime, realTime, delayMinutes) {
   const scheduledFormatted = formatTime(scheduledTime);
 
   if (!realTime) {
-    // No realtime data - just show scheduled time
-    return scheduledFormatted;
+    // No realtime data - show scheduled time with unknown dot
+    return `${getDelayDot(null)} ${scheduledFormatted}`;
   }
 
   const realFormatted = formatTime(realTime);
