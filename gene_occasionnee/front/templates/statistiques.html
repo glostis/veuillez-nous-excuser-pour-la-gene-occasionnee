@@ -1,57 +1,33 @@
-<!doctype html>
-<html>
-  <head>
-    <title>Veuillez nous excuser pour la gêne occasionnée</title>
-    <link rel="icon" href="/static/ter.png" type="image/png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/styles.css">
-  </head>
-  <body>
-    <div class="header-with-logo">
-      <img src="/static/ter.png" alt="TER HDF Logo" class="ter-logo" />
-      <div>
-        <h1>Veuillez nous excuser pour la gêne occasionnée</h1>
-        <p>
-          <i
-            >Analyse des retards de trains sur les lignes TER HDF Compiègne ↔
-            Paris Gare du Nord</i
-          >
-        </p>
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Date Filter Section -->
+<div class="date-filter-section" style="margin-bottom: 20px; padding: 15px; background-color: var(--color-stat-box-bg); border-radius: 5px; border: 1px solid var(--color-border);">
+  <h3 style="margin-top: 0; color: var(--color-text);">Filtre par date</h3>
+  <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+    <div style="display: flex; flex-direction: column; gap: 5px;">
+      <label for="start-date" style="font-weight: bold; color: var(--color-text);">Date de début:</label>
+      <input type="date" id="start-date" style="padding: 8px; border-radius: 4px; border: 1px solid var(--color-border); background-color: var(--color-background); color: var(--color-text);" lang="fr">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px;">
+      <label for="end-date" style="font-weight: bold; color: var(--color-text);">Date de fin:</label>
+      <input type="date" id="end-date" style="padding: 8px; border-radius: 4px; border: 1px solid var(--color-border); background-color: var(--color-background); color: var(--color-text);" lang="fr">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px; justify-content: flex-end;">
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button id="preset-week" style="padding: 8px 12px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Semaine</button>
+        <button id="preset-month" style="padding: 8px 12px; background-color: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Mois</button>
+        <button id="preset-all" style="padding: 8px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Tout</button>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- Date Filter Section -->
-    <div class="date-filter-section" style="margin-bottom: 20px; padding: 15px; background-color: var(--color-stat-box-bg); border-radius: 5px; border: 1px solid var(--color-border);">
-      <h3 style="margin-top: 0; color: var(--color-text);">Filtre par date</h3>
-      <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <label for="start-date" style="font-weight: bold; color: var(--color-text);">Date de début:</label>
-          <input type="date" id="start-date" style="padding: 8px; border-radius: 4px; border: 1px solid var(--color-border); background-color: var(--color-background); color: var(--color-text);" lang="fr">
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-          <label for="end-date" style="font-weight: bold; color: var(--color-text);">Date de fin:</label>
-          <input type="date" id="end-date" style="padding: 8px; border-radius: 4px; border: 1px solid var(--color-border); background-color: var(--color-background); color: var(--color-text);" lang="fr">
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 5px; justify-content: flex-end;">
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button id="preset-week" style="padding: 8px 12px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Semaine</button>
-            <button id="preset-month" style="padding: 8px 12px; background-color: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Mois</button>
-            <button id="preset-all" style="padding: 8px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Tout</button>
-          </div>
-        </div>
-      </div>
-    </div>
+<div id="stats"></div>
+<div id="line-stats" style="margin-top: 40px;"></div>
+<div id="timestamp" class="timestamp"></div>
+{% endblock %}
 
-    <div class="dark-reader-warning" id="dark-reader-warning">
-      <strong>⚠️ Dark Reader détecté :</strong> Cette page suit automatiquement votre thème système.
-      Pour une meilleure expérience, nous vous recommandons de désactiver Dark Reader pour ce site.
-      <button id="disable-dark-reader-btn" style="margin-left: 10px; padding: 5px 10px; background: #C62828; color: white; border: none; border-radius: 3px; cursor: pointer;">Désactiver Dark Reader</button>
-    </div>
-
-    <div id="stats"></div>
-    <div id="line-stats" style="margin-top: 40px;"></div>
-    <div id="timestamp" class="timestamp"></div>
-
-    <script src="/static/statistiques_script.js"></script>
-  </body>
-</html>
+{% block scripts %}
+<script src="/static/statistiques_script.js"></script>
+{% endblock %}

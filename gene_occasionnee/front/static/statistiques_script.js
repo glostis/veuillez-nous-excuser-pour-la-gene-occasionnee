@@ -43,20 +43,6 @@ function generateTableHTML(stats, title) {
   return html;
 }
 
-function generateChartLegendHTML() {
-  return (
-    '<div class="chart-legend" style="margin-top: 10px; font-size: 12px;">' +
-    "<strong>Légende:</strong> " +
-    '<span><span class="legend-color-box legend-on-time"></span>À l\'heure</span> | ' +
-    '<span><span class="legend-color-box legend-delay-5min"></span>≤5 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-15min"></span>≤15 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-45min"></span>≤45 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-over-45min"></span>>45 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-unknown"></span>Inconnu</span>' +
-    "</div>"
-  );
-}
-
 function generateGlobalChartHTML(stats) {
   const total = stats.total_trains;
   if (total === 0) return "";
@@ -144,7 +130,7 @@ function generateInlineChartHTML(stat) {
   return html;
 }
 
-async function loadTimestamp() {
+async function loadTimestampForStats() {
   try {
     const response = await fetch("/api/latest-timestamp");
     const timestamp = await response.json();
@@ -167,45 +153,6 @@ async function loadTimestamp() {
       error,
     );
   }
-}
-
-function detectDarkReader() {
-  // Check for Dark Reader HTML attributes
-  return (
-    document.documentElement.hasAttribute("data-darkreader-scheme") ||
-    document.documentElement.hasAttribute("data-darkreader-mode")
-  );
-}
-
-// Check for Dark Reader and show warning
-function checkDarkReader() {
-  if (detectDarkReader()) {
-    document.getElementById("dark-reader-warning").classList.add("show");
-
-    document
-      .getElementById("disable-dark-reader-btn")
-      .addEventListener("click", function () {
-        alert(
-          "Pour désactiver Dark Reader pour ce site:\n1. Cliquez sur l'icône Dark Reader dans votre barre d'outils\n2. Sélectionnez \"Désactiver pour ce site\"\n3. Actualisez la page",
-        );
-      });
-  }
-}
-
-function setupSystemThemeListener() {
-  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-  function handleThemeChange(e) {
-    if (e.matches) {
-      document.body.classList.add("dark-theme");
-    } else {
-      document.body.classList.remove("dark-theme");
-    }
-  }
-
-  handleThemeChange(mediaQuery);
-
-  mediaQuery.addEventListener("change", handleThemeChange);
 }
 
 // Global variables for date filtering
@@ -610,7 +557,7 @@ async function setPresetDateRange(preset) {
 async function refreshAllData() {
   await loadStats();
   await loadLineStats();
-  await loadTimestamp();
+  await loadTimestampForStats();
 }
 
 // Set up periodic refresh every 2 minutes (120,000 milliseconds)
@@ -626,7 +573,7 @@ function setupPeriodicRefresh() {
 }
 
 window.onload = function () {
-  loadTimestamp();
+  loadTimestampForStats();
 
   loadDateRange();
   setupDateFilter();

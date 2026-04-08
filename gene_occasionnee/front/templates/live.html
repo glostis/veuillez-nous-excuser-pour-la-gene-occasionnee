@@ -1,76 +1,54 @@
-<!doctype html>
-<html>
-  <head>
-    <title>Veuillez nous excuser pour la gêne occasionnée - Vue en direct</title>
-    <link rel="icon" href="/static/ter.png" type="image/png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/styles.css">
-  </head>
-  <body>
-    <div class="header-with-logo">
-      <img src="/static/ter.png" alt="TER HDF Logo" class="ter-logo" />
-      <div>
-        <h1>Veuillez nous excuser pour la gêne occasionnée</h1>
-        <p>
-          <i
-            >Analyse des retards de trains sur les lignes TER HDF Compiègne ↔
-            Paris Gare du Nord</i
-          >
-        </p>
-      </div>
-    </div>
+{% extends "base.html" %}
 
-    <div class="dark-reader-warning" id="dark-reader-warning">
-      <strong>⚠️ Dark Reader détecté :</strong> Cette page suit automatiquement votre thème système.
-      Pour une meilleure expérience, nous vous recommandons de désactiver Dark Reader pour ce site.
-      <button id="disable-dark-reader-btn" style="margin-left: 10px; padding: 5px 10px; background: #C62828; color: white; border: none; border-radius: 3px; cursor: pointer;">Désactiver Dark Reader</button>
-    </div>
+{% block title %}Veuillez nous excuser pour la gêne occasionnée - Vue en direct{% endblock %}
 
-    <div id="live-content">
-      <div class="live-direction-table">
-        <h3>Compiègne vers Paris Nord</h3>
-        <table class="live-trips-table">
-          <thead>
-            <tr class="live-trip-header">
-              <th class="live-trip-header-item">Train</th>
-              <th class="live-trip-header-item">Départ</th>
-              <th class="live-trip-header-item">Arrivée</th>
-              <th class="live-trip-header-item">Retard</th>
-            </tr>
-          </thead>
-          <tbody id="compiegne-to-paris-trips">
-          </tbody>
-        </table>
-      </div>
+{% block content %}
+<div id="live-content">
+  <div class="live-direction-table">
+    <h3>Compiègne vers Paris Nord</h3>
+    <table class="live-trips-table">
+      <thead>
+        <tr class="live-trip-header">
+          <th class="live-trip-header-item">Train</th>
+          <th class="live-trip-header-item">Départ</th>
+          <th class="live-trip-header-item">Arrivée</th>
+          <th class="live-trip-header-item">Retard</th>
+        </tr>
+      </thead>
+      <tbody id="compiegne-to-paris-trips">
+      </tbody>
+    </table>
+  </div>
 
-      <div class="live-direction-table">
-        <h3>Paris Nord vers Compiègne</h3>
-        <table class="live-trips-table">
-          <thead>
-            <tr class="live-trip-header">
-              <th class="live-trip-header-item">Train</th>
-              <th class="live-trip-header-item">Départ</th>
-              <th class="live-trip-header-item">Arrivée</th>
-              <th class="live-trip-header-item">Retard</th>
-            </tr>
-          </thead>
-          <tbody id="paris-to-compiegne-trips">
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <div class="live-direction-table">
+    <h3>Paris Nord vers Compiègne</h3>
+    <table class="live-trips-table">
+      <thead>
+        <tr class="live-trip-header">
+          <th class="live-trip-header-item">Train</th>
+          <th class="live-trip-header-item">Départ</th>
+          <th class="live-trip-header-item">Arrivée</th>
+          <th class="live-trip-header-item">Retard</th>
+        </tr>
+      </thead>
+      <tbody id="paris-to-compiegne-trips">
+      </tbody>
+    </table>
+  </div>
+</div>
 
-    <div class="timestamp">
-      <p><strong>Dernière mise à jour des données :</strong> <span id="update-timestamp"></span></p>
-      <p>Les données sont mises à jour toutes les 2 minutes.</p>
-    </div>
+<div class="timestamp">
+  <p><strong>Dernière mise à jour des données :</strong> <span id="update-timestamp"></span></p>
+  <p>Les données sont mises à jour toutes les 2 minutes.</p>
+</div>
 
-    <div style="margin-top: 20px;">
-      <a href="/statistiques" style="color: var(--color-text); text-decoration: underline;">
-        ← Voir les statistiques historiques
-      </a>
-    </div>
+<div style="margin-top: 20px;">
+  <a href="/statistiques" style="color: var(--color-text); text-decoration: underline;">
+    ← Voir les statistiques historiques
+  </a>
+</div>
+{% endblock %}
 
-    <script src="/static/live_script.js"></script>
-  </body>
-</html>
+{% block scripts %}
+<script src="/static/live_script.js"></script>
+{% endblock %}

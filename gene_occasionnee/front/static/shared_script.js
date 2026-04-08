@@ -1,0 +1,180 @@
+// Functions for delay classification and display
+function getDelayClass(delayMinutes) {
+  if (delayMinutes === null || delayMinutes === undefined) {
+    return 'delay-unknown';
+  } else if (delayMinutes <= 0) {
+    return 'on-time';
+  } else if (delayMinutes <= 5) {
+    return 'delay-5min';
+  } else if (delayMinutes <= 15) {
+    return 'delay-15min';
+  } else if (delayMinutes <= 45) {
+    return 'delay-45min';
+  } else {
+    return 'delay-over-45min';
+  }
+}
+
+function getDelayDot(delayMinutes) {
+  const delayClass = getDelayClass(delayMinutes);
+  return `<span class="delay-dot ${delayClass}"></span>`;
+}
+
+function formatTime(timeString) {
+  if (!timeString) return 'N/A';
+  // Convert from "HH:MM:SS" to "HH:MM"
+  return timeString.split(':').slice(0, 2).join(':');
+}
+
+function formatDelayInfo(departureDelay, arrivalDelay) {
+  if (departureDelay === null && arrivalDelay === null) {
+    return '';
+  } else if (departureDelay === arrivalDelay) {
+    // Same delay for both
+    if (departureDelay === null || departureDelay === undefined) {
+      return '';
+    } else if (departureDelay <= 0) {
+      return 'À l\'heure';
+    } else if (departureDelay < 60) {
+      return `${departureDelay} min`;
+    } else {
+      const hours = Math.floor(departureDelay / 60);
+      const minutes = departureDelay % 60;
+      return `${hours}h${minutes.toString().padStart(2, '0')}`;
+    }
+  } else {
+    // Different delays for departure and arrival
+    const parts = [];
+    if (departureDelay !== null && departureDelay !== undefined) {
+      if (departureDelay > 0) {
+        parts.push(`Départ: ${formatSingleDelay(departureDelay)}`);
+      } else {
+        parts.push('Départ: À l\'heure');
+      }
+    }
+    if (arrivalDelay !== null && arrivalDelay !== undefined) {
+      if (arrivalDelay > 0) {
+        parts.push(`Arrivée: ${formatSingleDelay(arrivalDelay)}`);
+      } else {
+        parts.push('Arrivée: À l\'heure');
+      }
+    }
+    return parts.join(', ');
+  }
+}
+
+function formatSingleDelay(delayMinutes) {
+  if (delayMinutes < 60) {
+    return `${delayMinutes} min`;
+  } else {
+    const hours = Math.floor(delayMinutes / 60);
+    const minutes = delayMinutes % 60;
+    return `${hours}h${minutes.toString().padStart(2, '0')}`;
+  }
+}
+
+function formatTripTime(scheduledTime, realTime, delayMinutes) {
+  const scheduledFormatted = formatTime(scheduledTime);
+
+  if (!realTime) {
+    // No realtime data - just show scheduled time
+    return scheduledFormatted;
+  }
+
+  const realFormatted = formatTime(realTime);
+  const hasDelay = delayMinutes > 0;
+
+  if (hasDelay) {
+    // Show strikethrough scheduled time and real time
+    return `${getDelayDot(delayMinutes)} <span style="text-decoration: line-through;">${scheduledFormatted}</span> ${realFormatted}`;
+  } else {
+    // On time - show scheduled time with dot
+    return `${getDelayDot(delayMinutes)} ${scheduledFormatted}`;
+  }
+}
+
+// Check for Dark Reader
+function detectDarkReader() {
+  return (
+    document.documentElement.hasAttribute('data-darkreader-scheme') ||
+    document.documentElement.hasAttribute('data-darkreader-mode')
+  );
+}
+
+function checkDarkReader() {
+  if (detectDarkReader()) {
+    document.getElementById('dark-reader-warning').classList.add('show');
+
+    document
+      .getElementById('disable-dark-reader-btn')
+      .addEventListener('click', function () {
+        alert(
+          'Pour désactiver Dark Reader pour ce site:\n1. Cliquez sur l\'icône Dark Reader dans votre barre d\'outils\n2. Sélectionnez "Désactiver pour ce site"\n3. Actualisez la page',
+        );
+      });
+  }
+}
+
+// Setup system theme listener
+function setupSystemThemeListener() {
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function handleThemeChange(e) {
+    if (e.matches) {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+  }
+
+  handleThemeChange(mediaQuery);
+
+  mediaQuery.addEventListener('change', handleThemeChange);
+}
+
+// Load timestamp
+async function loadTimestamp() {
+  try {
+    const response = await fetch('/api/latest-timestamp');
+    const timestamp = await response.json();
+    const timestampElement = document.getElementById('update-timestamp');
+    if (timestampElement) {
+      timestampElement.textContent = timestamp.updated_at;
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement de la date de dernière mise à jour :', error);
+  }
+}
+
+// Set up periodic refresh
+function setupPeriodicRefresh(refreshFunction, interval = 120000) {
+  // Initial refresh
+  if (refreshFunction) {
+    refreshFunction();
+  }
+
+  // Set interval for periodic refresh (every 2 minutes by default)
+  const refreshInterval = setInterval(() => {
+    if (refreshFunction) {
+      refreshFunction();
+    }
+  }, interval);
+
+  // Store interval ID so it can be cleared if needed
+  window.refreshIntervalId = refreshInterval;
+}
+
+// Chart legend generation
+function generateChartLegendHTML() {
+  return (
+    '<div class="chart-legend" style="margin-top: 10px; font-size: 12px;">' +
+    "<strong>Légende:</strong> " +
+    '<span><span class="legend-color-box legend-on-time"></span>À l\'heure</span> | ' +
+    '<span><span class="legend-color-box legend-delay-5min"></span>≤5 min</span> | ' +
+    '<span><span class="legend-color-box legend-delay-15min"></span>≤15 min</span> | ' +
+    '<span><span class="legend-color-box legend-delay-45min"></span>≤45 min</span> | ' +
+    '<span><span class="legend-color-box legend-delay-over-45min"></span>>45 min</span> | ' +
+    '<span><span class="legend-color-box legend-delay-unknown"></span>Inconnu</span>' +
+    "</div>"
+  );
+}

@@ -23,16 +23,22 @@ This document describes how to run the Python scripts and analyze the data store
 │       ├── __init__.py
 │       ├── app.py                               # Flask web application
 │       ├── static/                              # Static files
-│       │   ├── script.js                        # Frontend JavaScript
+│       │   ├── shared_script.js                 # Shared JavaScript functions
+│       │   ├── live_script.js                   # Live page JavaScript
+│       │   ├── statistiques_script.js           # Statistiques page JavaScript
+│       │   ├── styles.css                       # CSS styles
 │       │   └── ter.png
 │       └── templates/
-│           └── index.html
+│           ├── base.html                        # Base template with shared HTML
+│           ├── live.html                        # Live view template
+│           └── statistiques.html                # Statistiques template
 ├── generate_synthetic_data.py                   # Synthetic data generator
 ├── pyproject.toml                               # Python dependencies (uv)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_app.py                              # pytest module that tests the API routes
-│   └── test_ingest_gtfs_static.py               # pytest module that tests the static data fetching script
+│   ├── test_ingest_gtfs_rt.py                   # pytest module that tests the realtime GTFS data fetching script
+│   └── test_ingest_gtfs_static.py               # pytest module that tests the static GTFS data fetching script
 └── .env                                         # Environment variables
 ```
 
