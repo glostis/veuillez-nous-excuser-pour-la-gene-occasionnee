@@ -56,10 +56,7 @@ body {
     white-space: nowrap;
   }
 
-  .legend-color-box {
-    width: 10px;
-    height: 10px;
-  }
+
 
   .date-filter-section {
     padding: 10px;
@@ -269,37 +266,6 @@ tr:nth-child(even) {
 /* Legend colors */
 .chart-legend span {
   color: var(--color-text);
-}
-
-.chart-legend .legend-color-box {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 3px;
-  vertical-align: middle;
-}
-
-.chart-legend .legend-on-time {
-  background-color: var(--chart-color-on-time);
-}
-
-.chart-legend .legend-delay-5min {
-  background-color: var(--chart-color-delay-5min);
-}
-
-.chart-legend .legend-delay-15min {
-  background-color: var(--chart-color-delay-15min);
-}
-
-.chart-legend .legend-delay-45min {
-  background-color: var(--chart-color-delay-45min);
-}
-
-.chart-legend .legend-delay-over-45min {
-  background-color: var(--chart-color-delay-over-45min);
-}
-.chart-legend .legend-delay-unknown {
-  background-color: var(--chart-color-delay-unknown);
 }
 
 
