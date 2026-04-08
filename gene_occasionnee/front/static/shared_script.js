@@ -135,14 +135,28 @@ function setupSystemThemeListener() {
 // Load timestamp
 async function loadTimestamp() {
   try {
-    const response = await fetch('/api/latest-timestamp');
+    const response = await fetch("/api/latest-timestamp");
     const timestamp = await response.json();
-    const timestampElement = document.getElementById('update-timestamp');
-    if (timestampElement) {
-      timestampElement.textContent = timestamp.updated_at;
+
+    let html =
+      "<p><strong>Dernière mise à jour des données :</strong> le " +
+      timestamp.updated_at +
+      "</p>";
+
+    if (timestamp.is_outdated) {
+      document.getElementById("timestamp").style.color = "red";
+    } else {
+      document.getElementById("timestamp").style.color = "#666";
     }
+
+    html += "<i>Les données sont mises à jour toutes les 2 minutes</i>";
+
+    document.getElementById("timestamp").innerHTML = html;
   } catch (error) {
-    console.error('Erreur lors du chargement de la date de dernière mise à jour :', error);
+    console.error(
+      "Erreur lors du chargement de la date de dernière mise à jour :",
+      error,
+    );
   }
 }
 
@@ -165,16 +179,16 @@ function setupPeriodicRefresh(refreshFunction, interval = 120000) {
 }
 
 // Chart legend generation
-function generateChartLegendHTML() {
+function generateLegend() {
   return (
     '<div class="chart-legend" style="margin-top: 10px; font-size: 12px;">' +
     "<strong>Légende:</strong> " +
-    '<span><span class="legend-color-box legend-on-time"></span>À l\'heure</span> | ' +
-    '<span><span class="legend-color-box legend-delay-5min"></span>≤5 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-15min"></span>≤15 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-45min"></span>≤45 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-over-45min"></span>>45 min</span> | ' +
-    '<span><span class="legend-color-box legend-delay-unknown"></span>Inconnu</span>' +
+    '<span><span class="delay-dot on-time"></span>À l\'heure</span> | ' +
+    '<span><span class="delay-dot delay-5min"></span>≤5 min</span> | ' +
+    '<span><span class="delay-dot delay-15min"></span>≤15 min</span> | ' +
+    '<span><span class="delay-dot delay-45min"></span>≤45 min</span> | ' +
+    '<span><span class="delay-dot delay-over-45min"></span>>45 min</span> | ' +
+    '<span><span class="delay-dot delay-unknown"></span>Inconnu</span>' +
     "</div>"
   );
 }

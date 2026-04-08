@@ -38,7 +38,7 @@ function generateTableHTML(stats, title) {
   html += "</tbody></table></div>";
 
   // Add legend below the table
-  html += generateChartLegendHTML();
+  html += generateLegend();
 
   return html;
 }
@@ -87,7 +87,7 @@ function generateGlobalChartHTML(stats) {
   html += "</div>";
 
   // Add legend below the chart
-  html += generateChartLegendHTML();
+  html += generateLegend();
 
   return html;
 }
@@ -128,31 +128,6 @@ function generateInlineChartHTML(stat) {
 
   html += "</div>";
   return html;
-}
-
-async function loadTimestampForStats() {
-  try {
-    const response = await fetch("/api/latest-timestamp");
-    const timestamp = await response.json();
-
-    let html =
-      "<p><strong>Dernière mise à jour des données :</strong> le " +
-      timestamp.updated_at +
-      "</p>";
-
-    if (timestamp.is_outdated) {
-      document.getElementById("timestamp").style.color = "red";
-    } else {
-      document.getElementById("timestamp").style.color = "#666";
-    }
-
-    document.getElementById("timestamp").innerHTML = html;
-  } catch (error) {
-    console.error(
-      "Erreur lors du chargement de la date de dernière mise à jour :",
-      error,
-    );
-  }
 }
 
 // Global variables for date filtering
@@ -467,7 +442,7 @@ async function generateTimelineChartHTML() {
     });
 
     html += "</div>";
-    html += generateChartLegendHTML();
+    html += generateLegend();
 
     return html;
   } catch (error) {
@@ -557,7 +532,7 @@ async function setPresetDateRange(preset) {
 async function refreshAllData() {
   await loadStats();
   await loadLineStats();
-  await loadTimestampForStats();
+  await loadTimestamp();
 }
 
 // Set up periodic refresh every 2 minutes (120,000 milliseconds)
@@ -573,7 +548,7 @@ function setupPeriodicRefresh() {
 }
 
 window.onload = function () {
-  loadTimestampForStats();
+  loadTimestamp();
 
   loadDateRange();
   setupDateFilter();
