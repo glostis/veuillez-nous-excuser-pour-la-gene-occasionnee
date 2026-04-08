@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Veuillez nous excuser pour la gêne occasionnée - Vue en direct</title>
+    <link rel="icon" href="/static/ter.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <div class="header-with-logo">
+      <img src="/static/ter.png" alt="TER HDF Logo" class="ter-logo" />
+      <div>
+        <h1>Veuillez nous excuser pour la gêne occasionnée</h1>
+        <p>
+          <i
+            >Analyse des retards de trains sur les lignes TER HDF Compiègne ↔
+            Paris Gare du Nord</i
+          >
+        </p>
+      </div>
+    </div>
+
+    <div class="dark-reader-warning" id="dark-reader-warning">
+      <strong>⚠️ Dark Reader détecté :</strong> Cette page suit automatiquement votre thème système.
+      Pour une meilleure expérience, nous vous recommandons de désactiver Dark Reader pour ce site.
+      <button id="disable-dark-reader-btn" style="margin-left: 10px; padding: 5px 10px; background: #C62828; color: white; border: none; border-radius: 3px; cursor: pointer;">Désactiver Dark Reader</button>
+    </div>
+
+    <div id="live-content">
+      <h2>Vue en direct - Trains d'aujourd'hui</h2>
+      <div id="last-updated" style="margin-bottom: 20px; font-style: italic;"></div>
+
+      <div class="live-direction-table">
+        <div class="live-direction-header">
+          <div class="live-direction-title">Compiègne → Paris Nord</div>
+        </div>
+        <div class="live-trip-header">
+          <div class="live-trip-header-item">Train</div>
+          <div class="live-trip-header-item">Départ</div>
+          <div class="live-trip-header-item">Arrivée</div>
+          <div class="live-trip-header-item">Retard</div>
+        </div>
+        <div id="compiegne-to-paris-trips"></div>
+      </div>
+
+      <div class="live-direction-table">
+        <div class="live-direction-header">
+          <div class="live-direction-title">Paris Nord → Compiègne</div>
+        </div>
+        <div class="live-trip-header">
+          <div class="live-trip-header-item">Train</div>
+          <div class="live-trip-header-item">Départ</div>
+          <div class="live-trip-header-item">Arrivée</div>
+          <div class="live-trip-header-item">Retard</div>
+        </div>
+        <div id="paris-to-compiegne-trips"></div>
+      </div>
+    </div>
+
+    <div class="timestamp">
+      <p><strong>Dernière mise à jour des données :</strong> <span id="update-timestamp"></span></p>
+      <p>Les données sont mises à jour toutes les 2 minutes.</p>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <a href="/statistiques" style="color: var(--color-text); text-decoration: underline;">
+        ← Voir les statistiques historiques
+      </a>
+    </div>
+
+    <script src="/static/live_script.js"></script>
+  </body>
+</html>

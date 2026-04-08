@@ -67,8 +67,14 @@ def row_to_delays(row) -> dict:
 
 
 @app.route("/")
-def index():
-    """Main dashboard page."""
+def live_view():
+    """Live view showing current day trips."""
+    return render_template("live.html")
+
+
+@app.route("/statistiques")
+def statistiques():
+    """Historical statistics page."""
     return render_template("index.html")
 
 
@@ -228,6 +234,75 @@ def get_date_range():
         max_date_clean = max_date_str.split(" ")[0] if " " in max_date_str else max_date_str
 
         return jsonify({"min_date": min_date_clean, "max_date": max_date_clean})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
+@app.route("/api/live")
+def get_live_data():
+    """Get live data for current day trips."""
+    conn = get_db_connection()
+
+    try:
+        # Get today's date in the format expected by the database
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        query = f"""
+        SELECT
+            route_short_name AS line,
+            trip_headsign,
+            departure_station_name || ' → ' || arrival_station_name AS direction,
+            STRFTIME(departure_time_scheduled, '%H:%M:%S') AS departure_time_scheduled,
+            STRFTIME(departure_time_real, '%H:%M:%S') AS departure_time_real,
+            STRFTIME(arrival_time_scheduled, '%H:%M:%S') AS arrival_time_scheduled,
+            STRFTIME(arrival_time_real, '%H:%M:%S') AS arrival_time_real,
+            CASE
+                WHEN departure_time_real IS NOT NULL
+                THEN EXTRACT(EPOCH FROM (departure_time_real - departure_time_scheduled)) / 60
+                ELSE NULL
+            END AS departure_delay_minutes,
+            CASE
+                WHEN arrival_time_real IS NOT NULL
+                THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
+                ELSE NULL
+            END AS arrival_delay_minutes
+        FROM {TABLE}
+        WHERE DATE(departure_time_scheduled) = '{today}'
+        ORDER BY departure_time_scheduled
+        """
+
+        results = conn.execute(query).fetchdf()
+
+        if len(results) == 0:
+            return jsonify([])
+
+        # Convert to list of dictionaries
+        live_data = []
+        for _, row in results.iterrows():
+            # Handle NaN values properly - convert to None for all fields
+            def clean_value(value):
+                if isinstance(value, float) and np.isnan(value):
+                    return None
+                return value
+
+            trip = {
+                "line": clean_value(row["line"]),
+                "trip_headsign": clean_value(row["trip_headsign"]),
+                "direction": clean_value(row["direction"]),
+                "departure_time_scheduled": clean_value(row["departure_time_scheduled"]),
+                "departure_time_real": clean_value(row["departure_time_real"]),
+                "arrival_time_scheduled": clean_value(row["arrival_time_scheduled"]),
+                "arrival_time_real": clean_value(row["arrival_time_real"]),
+                "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
+                "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"])
+            }
+            live_data.append(trip)
+
+        return jsonify(live_data)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
