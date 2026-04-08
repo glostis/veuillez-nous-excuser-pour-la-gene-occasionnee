@@ -26,12 +26,45 @@ function formatTime(timeString) {
   return timeString.split(':').slice(0, 2).join(':');
 }
 
-function formatDelayInfo(delayMinutes) {
-  if (delayMinutes === null || delayMinutes === undefined) {
+function formatDelayInfo(departureDelay, arrivalDelay) {
+  if (departureDelay === null && arrivalDelay === null) {
     return '';
-  } else if (delayMinutes <= 0) {
-    return 'À l\'heure';
-  } else if (delayMinutes < 60) {
+  } else if (departureDelay === arrivalDelay) {
+    // Same delay for both
+    if (departureDelay === null || departureDelay === undefined) {
+      return '';
+    } else if (departureDelay <= 0) {
+      return 'À l\'heure';
+    } else if (departureDelay < 60) {
+      return `${departureDelay} min`;
+    } else {
+      const hours = Math.floor(departureDelay / 60);
+      const minutes = departureDelay % 60;
+      return `${hours}h${minutes.toString().padStart(2, '0')}`;
+    }
+  } else {
+    // Different delays for departure and arrival
+    const parts = [];
+    if (departureDelay !== null && departureDelay !== undefined) {
+      if (departureDelay > 0) {
+        parts.push(`Départ: ${formatSingleDelay(departureDelay)}`);
+      } else {
+        parts.push('Départ: À l\'heure');
+      }
+    }
+    if (arrivalDelay !== null && arrivalDelay !== undefined) {
+      if (arrivalDelay > 0) {
+        parts.push(`Arrivée: ${formatSingleDelay(arrivalDelay)}`);
+      } else {
+        parts.push('Arrivée: À l\'heure');
+      }
+    }
+    return parts.join(', ');
+  }
+}
+
+function formatSingleDelay(delayMinutes) {
+  if (delayMinutes < 60) {
     return `${delayMinutes} min`;
   } else {
     const hours = Math.floor(delayMinutes / 60);
@@ -61,26 +94,19 @@ function formatTripTime(scheduledTime, realTime, delayMinutes) {
 }
 
 function generateTripHTML(trip) {
-  const isDelayed = trip.arrival_delay_minutes > 0 || trip.departure_delay_minutes > 0;
-  const rowClass = isDelayed ? 'live-trip-row live-trip-delayed' : 'live-trip-row';
-
   return `
-    <div class="${rowClass}">
-      <div class="live-trip-info">
-        <strong>${trip.line}</strong> ${trip.trip_headsign}
-      </div>
-      <div class="live-trip-times">
-        <div class="live-trip-time">
-          ${formatTripTime(trip.departure_time_scheduled, trip.departure_time_real, trip.departure_delay_minutes)}
-        </div>
-        <div class="live-trip-time">
-          ${formatTripTime(trip.arrival_time_scheduled, trip.arrival_time_real, trip.arrival_delay_minutes)}
-        </div>
-        <div class="live-trip-delay-info">
-          ${formatDelayInfo(trip.arrival_delay_minutes || trip.departure_delay_minutes)}
-        </div>
-      </div>
-    </div>
+    <tr class="live-trip-row">
+      <td class="live-trip-line">${trip.line}</td>
+      <td class="live-trip-departure">
+        ${formatTripTime(trip.departure_time_scheduled, trip.departure_time_real, trip.departure_delay_minutes)}
+      </td>
+      <td class="live-trip-arrival">
+        ${formatTripTime(trip.arrival_time_scheduled, trip.arrival_time_real, trip.arrival_delay_minutes)}
+      </td>
+      <td class="live-trip-delay">
+        ${formatDelayInfo(trip.departure_delay_minutes, trip.arrival_delay_minutes)}
+      </td>
+    </tr>
   `;
 }
 
@@ -111,10 +137,6 @@ async function loadLiveData() {
 
     document.getElementById('compiegne-to-paris-trips').innerHTML = compiegneHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';
     document.getElementById('paris-to-compiegne-trips').innerHTML = parisHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';
-
-    // Update last updated timestamp
-    const now = new Date();
-    document.getElementById('last-updated').textContent = `Dernière mise à jour : ${now.toLocaleString('fr-FR')}`;
 
   } catch (error) {
     console.error('Erreur lors du chargement des données en direct :', error);

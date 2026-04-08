@@ -27,33 +27,36 @@
     </div>
 
     <div id="live-content">
-      <h2>Vue en direct - Trains d'aujourd'hui</h2>
-      <div id="last-updated" style="margin-bottom: 20px; font-style: italic;"></div>
-
       <div class="live-direction-table">
-        <div class="live-direction-header">
-          <div class="live-direction-title">Compiègne → Paris Nord</div>
-        </div>
-        <div class="live-trip-header">
-          <div class="live-trip-header-item">Train</div>
-          <div class="live-trip-header-item">Départ</div>
-          <div class="live-trip-header-item">Arrivée</div>
-          <div class="live-trip-header-item">Retard</div>
-        </div>
-        <div id="compiegne-to-paris-trips"></div>
+        <h3>Compiègne vers Paris Nord</h3>
+        <table class="live-trips-table">
+          <thead>
+            <tr class="live-trip-header">
+              <th class="live-trip-header-item">Train</th>
+              <th class="live-trip-header-item">Départ</th>
+              <th class="live-trip-header-item">Arrivée</th>
+              <th class="live-trip-header-item">Retard</th>
+            </tr>
+          </thead>
+          <tbody id="compiegne-to-paris-trips">
+          </tbody>
+        </table>
       </div>
 
       <div class="live-direction-table">
-        <div class="live-direction-header">
-          <div class="live-direction-title">Paris Nord → Compiègne</div>
-        </div>
-        <div class="live-trip-header">
-          <div class="live-trip-header-item">Train</div>
-          <div class="live-trip-header-item">Départ</div>
-          <div class="live-trip-header-item">Arrivée</div>
-          <div class="live-trip-header-item">Retard</div>
-        </div>
-        <div id="paris-to-compiegne-trips"></div>
+        <h3>Paris Nord vers Compiègne</h3>
+        <table class="live-trips-table">
+          <thead>
+            <tr class="live-trip-header">
+              <th class="live-trip-header-item">Train</th>
+              <th class="live-trip-header-item">Départ</th>
+              <th class="live-trip-header-item">Arrivée</th>
+              <th class="live-trip-header-item">Retard</th>
+            </tr>
+          </thead>
+          <tbody id="paris-to-compiegne-trips">
+          </tbody>
+        </table>
       </div>
     </div>
 

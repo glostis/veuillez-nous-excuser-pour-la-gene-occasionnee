@@ -324,34 +324,44 @@ tr:nth-child(even) {
 }
 
 /* Live view specific styles */
-.live-trip-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
+.live-trips-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.live-trips-table th,
+.live-trips-table td {
+  padding: 10px 12px;
+  text-align: left;
   border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
 }
 
-.live-trip-delayed {
-  text-decoration: line-through;
-  opacity: 0.7;
+.live-trips-table th {
+  background-color: var(--color-table-header);
+  font-weight: bold;
+  position: sticky;
+  top: 0;
 }
 
-.live-trip-info {
-  flex: 1;
-  min-width: 0;
+.live-trip-row:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
-.live-trip-times {
-  display: flex;
-  gap: 20px;
-  align-items: center;
+.live-trip-line {
+  font-weight: bold;
+  width: 80px;
 }
 
-.live-trip-time {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.live-trip-departure,
+.live-trip-arrival {
+  width: 150px;
+}
+
+.live-trip-delay {
+  width: 120px;
+  font-size: 12px;
 }
 
 .delay-dot {
@@ -360,6 +370,7 @@ tr:nth-child(even) {
   height: 12px;
   border-radius: 50%;
   margin-right: 5px;
+  vertical-align: middle;
 }
 
 .delay-dot.on-time {
@@ -386,37 +397,11 @@ tr:nth-child(even) {
   background-color: var(--chart-color-delay-unknown);
 }
 
-.live-trip-delay-info {
-  font-size: 12px;
-  color: #666;
-  margin-left: 10px;
-}
-
 .live-direction-table {
   margin-bottom: 30px;
 }
 
-.live-direction-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.live-direction-title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.live-trip-header {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 2px solid var(--color-border);
-  font-weight: bold;
-}
-
 .live-trip-header-item {
-  flex: 1;
-  text-align: center;
+  padding: 10px 12px;
+  text-align: left;
 }
