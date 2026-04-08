@@ -29,6 +29,11 @@
     {% block content %}{% endblock %}
 
     <div id="timestamp" class="timestamp"></div>
+    {% if commit_sha %}
+    <div class="commit-info">
+      Code source : <span id="commit-sha"><a href="https://github.com/glostis/veuillez-nous-excuser-pour-la-gene-occasionnee/tree/{{ commit_sha }}">{{ commit_sha | truncate(7, killwords=True, end='') }}</a></span>
+    </div>
+    {% endif %}
     <script src="/static/shared_script.js"></script>
     {% block scripts %}{% endblock %}
   </body>

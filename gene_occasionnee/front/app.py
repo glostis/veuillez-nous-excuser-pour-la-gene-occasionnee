@@ -11,6 +11,18 @@ from gene_occasionnee import DB_PATH, TABLE, duckdb_connect
 
 app = Flask(__name__)
 
+# Read commit SHA from file
+try:
+    with open("/app/commit-sha", "r") as f:
+        COMMIT_SHA = f.read().strip()
+except FileNotFoundError:
+    try:
+        # Fallback to reading from .git/refs/heads/master
+        with open(".git/refs/heads/master", "r") as f:
+            COMMIT_SHA = f.read().strip()
+    except FileNotFoundError:
+        COMMIT_SHA = "unknown"
+
 DELAY_AGG = """
     SUM(CASE WHEN arrival_time_real IS NOT NULL AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
@@ -69,13 +81,13 @@ def row_to_delays(row) -> dict:
 @app.route("/")
 def live_view():
     """Live view showing current day trips."""
-    return render_template("live.html")
+    return render_template("live.html", commit_sha=COMMIT_SHA)
 
 
 @app.route("/statistiques")
 def statistiques():
     """Historical statistics page."""
-    return render_template("statistiques.html")
+    return render_template("statistiques.html", commit_sha=COMMIT_SHA)
 
 
 @app.route("/api/stats")
@@ -298,7 +310,7 @@ def get_live_data():
                 "arrival_time_scheduled": clean_value(row["arrival_time_scheduled"]),
                 "arrival_time_real": clean_value(row["arrival_time_real"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
-                "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"])
+                "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"]),
             }
             live_data.append(trip)
 

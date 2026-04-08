@@ -74,7 +74,7 @@ body {
   }
 }
 
-/* Table container for horizontal and vertical scrolling */
+/* Table container for horizontal and vertical scrolling with sticky headers/columns */
 .table-container {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
@@ -85,9 +85,21 @@ body {
 }
 
 table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   width: 100%;
   table-layout: auto;
+}
+
+th, td {
+  position: relative;
+  border: 1px solid;
+  border-color: var(--color-border);
+  color: var(--color-text);
+  padding: 8px 12px;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 14px;
 }
 
 /* Sticky table header */
@@ -116,54 +128,6 @@ th:first-child {
 /* Ensure proper background for sticky cells in even rows */
 tr:nth-child(even) td:first-child {
   background-color: var(--color-table-even) !important;
-}
-
-/* Fix for sticky element gaps - simpler approach */
-.table-container {
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  max-width: 100%;
-  max-height: 60vh;
-  margin-bottom: 20px;
-  position: relative;
-}
-
-/* Sticky table header */
-thead th {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background-color: var(--color-table-header) !important;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-/* Sticky first column */
-th:first-child, td:first-child {
-  position: sticky;
-  left: 0;
-  z-index: 10;
-  background-color: var(--color-table-header) !important;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-}
-
-/* Sticky first header cell (intersection) */
-th:first-child {
-  z-index: 30 !important;
-}
-
-/* Ensure proper background for sticky cells in even rows */
-tr:nth-child(even) td:first-child {
-  background-color: var(--color-table-even) !important;
-}
-
-/* Add subtle border fixes */
-table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-th, td {
-  position: relative;
 }
 
 .header-with-logo {
@@ -288,6 +252,20 @@ tr:nth-child(even) {
   margin-top: 20px;
   font-size: 14px;
   color: var(--color-text);
+}
+
+/* Commit info */
+.commit-info {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--color-text);
+  opacity: 0.7;
+  text-align: right;
+}
+
+#commit-sha {
+  font-family: monospace;
+  font-size: 11px;
 }
 
 /* Live view specific styles */
