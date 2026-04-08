@@ -75,7 +75,7 @@ def live_view():
 @app.route("/statistiques")
 def statistiques():
     """Historical statistics page."""
-    return render_template("index.html")
+    return render_template("statistiques.html")
 
 
 @app.route("/api/stats")
