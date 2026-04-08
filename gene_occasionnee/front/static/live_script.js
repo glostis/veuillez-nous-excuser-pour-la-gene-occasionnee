@@ -43,6 +43,19 @@ async function loadLiveData() {
     document.getElementById('compiegne-to-paris-trips').innerHTML = compiegneHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';
     document.getElementById('paris-to-compiegne-trips').innerHTML = parisHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';
 
+    // Add legend below each table
+    const compiegneTable = document.getElementById('compiegne-to-paris-trips').closest('.live-direction-table');
+    if (compiegneTable && !compiegneTable.querySelector('.chart-legend')) {
+      const legendHTML = generateLegend();
+      compiegneTable.insertAdjacentHTML('beforeend', legendHTML);
+    }
+
+    const parisTable = document.getElementById('paris-to-compiegne-trips').closest('.live-direction-table');
+    if (parisTable && !parisTable.querySelector('.chart-legend')) {
+      const legendHTML = generateLegend();
+      parisTable.insertAdjacentHTML('beforeend', legendHTML);
+    }
+
   } catch (error) {
     console.error('Erreur lors du chargement des données en direct :', error);
     document.getElementById('compiegne-to-paris-trips').innerHTML = '<p>Erreur lors du chargement des données. Veuillez rafraîchir la page.</p>';

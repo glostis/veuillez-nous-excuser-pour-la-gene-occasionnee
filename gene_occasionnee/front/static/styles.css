@@ -53,6 +53,7 @@ body {
 
   .chart-legend {
     font-size: 10px;
+    white-space: nowrap;
   }
 
   .legend-color-box {
@@ -399,6 +400,10 @@ tr:nth-child(even) {
 
 .live-direction-table {
   margin-bottom: 30px;
+}
+
+.live-direction-table .chart-legend {
+  width: 100%;
 }
 
 .live-trip-header-item {
