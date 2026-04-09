@@ -32,4 +32,21 @@ Add `DOMAIN=<your-domain-name>` in the `~/worktree/repo/.env` file.
 
 ## Locally
 
-TBD
+```bash
+git remote add all origin
+git remote set-url --add --push all git@github.com-perso:glostis/veuillez-nous-excuser-pour-la-gene-occasionnee.git
+git remote set-url --add --push all user@vps-ip:/home/glostis/bare/veuillez-nous-excuser-pour-la-gene-occasionnee.git
+```
+
+with the following content in `~/.ssh/config`:
+```
+Host github.com-perso
+    HostName github.com
+    User git
+    IdentityFile /github/perso/ssh/key
+
+Host vps-ip
+    HostName vps-ip
+    User user
+    IdentityFile /vps/ssh/key
+```
