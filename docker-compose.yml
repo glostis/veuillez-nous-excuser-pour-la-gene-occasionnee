@@ -5,9 +5,9 @@ services:
     command: python -m gene_occasionnee.back
     volumes:
       - ./data:/app/data
-      - ./logs:/var/log
     environment:
       - TZ=Europe/Paris
+      - PYTHONUNBUFFERED=1  # do not buffer logs, print them immediately
 
   front:
     build: .
