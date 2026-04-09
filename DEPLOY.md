@@ -28,6 +28,8 @@ docker compose up -d
 chmod +x hooks/post-receive
 ```
 
+Add `DOMAIN=<your-domain-name>` in the `~/worktree/repo/.env` file.
+
 ## Locally
 
 TBD
