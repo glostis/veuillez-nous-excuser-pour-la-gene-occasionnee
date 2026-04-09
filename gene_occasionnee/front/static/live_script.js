@@ -1,6 +1,10 @@
-function generateTripHTML(trip) {
+function generateTripHTML(trip, latestTimestamp) {
+  // Check if this trip is a past trip (has an updated_at earlier than the latest timestamp)
+  const isPastTrip = trip.updated_at && latestTimestamp && new Date(trip.updated_at) < new Date(latestTimestamp);
+  const pastTripClass = isPastTrip ? 'past-trip' : '';
+
   return `
-    <tr class="live-trip-row">
+    <tr class="live-trip-row ${pastTripClass}">
       <td class="live-trip-line">${trip.line}</td>
       <td class="live-trip-departure">
         ${formatTripTime(trip.departure_time_scheduled, trip.departure_time_real, trip.departure_delay_minutes)}
@@ -20,8 +24,15 @@ function generateTripHTML(trip) {
 
 async function loadLiveData() {
   try {
-    const response = await fetch('/api/live');
-    const data = await response.json();
+    // Fetch live data and latest timestamp in parallel
+    const [liveResponse, timestampResponse] = await Promise.all([
+      fetch('/api/live'),
+      fetch('/api/latest-timestamp')
+    ]);
+
+    const data = await liveResponse.json();
+    const timestampData = await timestampResponse.json();
+    const latestTimestamp = timestampData.updated_at;
 
     // Separate trips by direction
     const compiegneToParis = [];
@@ -39,9 +50,9 @@ async function loadLiveData() {
     compiegneToParis.sort((a, b) => a.departure_time_scheduled.localeCompare(b.departure_time_scheduled));
     parisToCompiegne.sort((a, b) => a.departure_time_scheduled.localeCompare(b.departure_time_scheduled));
 
-    // Generate HTML
-    const compiegneHTML = compiegneToParis.map(generateTripHTML).join('');
-    const parisHTML = parisToCompiegne.map(generateTripHTML).join('');
+    // Generate HTML with latest timestamp for past trip detection
+    const compiegneHTML = compiegneToParis.map(trip => generateTripHTML(trip, latestTimestamp)).join('');
+    const parisHTML = parisToCompiegne.map(trip => generateTripHTML(trip, latestTimestamp)).join('');
 
     document.getElementById('compiegne-to-paris-trips').innerHTML = compiegneHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';
     document.getElementById('paris-to-compiegne-trips').innerHTML = parisHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';

@@ -292,6 +292,17 @@ tr:nth-child(even) {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* Past trip styling - greyed out */
+.live-trip-row.past-trip {
+  opacity: 0.6;
+  filter: grayscale(30%);
+}
+
+.live-trip-row.past-trip:hover {
+  opacity: 0.8;
+  filter: grayscale(20%);
+}
+
 .live-trip-line {
   font-weight: bold;
   width: 80px;

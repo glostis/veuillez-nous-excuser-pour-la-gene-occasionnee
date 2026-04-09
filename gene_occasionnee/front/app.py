@@ -282,7 +282,8 @@ def get_live_data():
                 WHEN arrival_time_real IS NOT NULL
                 THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
                 ELSE NULL
-            END AS arrival_delay_minutes
+            END AS arrival_delay_minutes,
+            updated_at
         FROM {TABLE}
         WHERE DATE(departure_time_scheduled) = '{today}'
         ORDER BY departure_time_scheduled
@@ -318,6 +319,7 @@ def get_live_data():
                 "duration_real_minutes": clean_value(row["duration_real_minutes"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
                 "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"]),
+                "updated_at": clean_value(row["updated_at"]).isoformat() if hasattr(clean_value(row["updated_at"]), 'isoformat') else clean_value(row["updated_at"]),
             }
             live_data.append(trip)
 
@@ -363,7 +365,8 @@ def get_latest_timestamp():
         formatted_timestamp = updated_at.strftime("%d/%m/%Y à %Hh%M (heure de Compiègne)")
 
         timestamps = {
-            "updated_at": formatted_timestamp,
+            "updated_at": updated_at.isoformat(),
+            "formatted_timestamp": formatted_timestamp,
             "is_outdated": is_outdated,
         }
 
