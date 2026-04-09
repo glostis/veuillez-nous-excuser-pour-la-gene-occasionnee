@@ -42,11 +42,10 @@ ENV PATH="/app/.venv/bin:$PATH"
 WORKDIR /app
 
 ARG COMMIT_SHA
-RUN --mount=type=bind,source=.git/refs/heads/master,target=git-heads \
-    if [ -z "$COMMIT_SHA" ]; then \
-      COMMIT_SHA=$(cat git-heads 2>/dev/null || echo "unknown"); \
-    fi && \
-    echo "$COMMIT_SHA" > /app/commit-sha
+ENV COMMIT_SHA=$COMMIT_SHA
+
+ARG COMMIT_DATE
+ENV COMMIT_DATE=$COMMIT_DATE
 
 # Run the FastAPI application by default
 CMD ["fastapi", "run", "--host", "0.0.0.0", "src/uv_docker_example"]

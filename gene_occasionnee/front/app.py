@@ -2,6 +2,7 @@
 Flask app to display analytics on train delays between Compiègne and Paris.
 """
 
+import os
 from datetime import datetime
 
 import numpy as np
@@ -11,17 +12,9 @@ from gene_occasionnee import DB_PATH, TABLE, duckdb_connect
 
 app = Flask(__name__)
 
-# Read commit SHA from file
-try:
-    with open("/app/commit-sha", "r") as f:
-        COMMIT_SHA = f.read().strip()
-except FileNotFoundError:
-    try:
-        # Fallback to reading from .git/refs/heads/master
-        with open(".git/refs/heads/master", "r") as f:
-            COMMIT_SHA = f.read().strip()
-    except FileNotFoundError:
-        COMMIT_SHA = "unknown"
+
+COMMIT_SHA = os.getenv("COMMIT_SHA", "unknown")
+COMMIT_DATE = os.getenv("COMMIT_DATE", "unknown")
 
 DELAY_AGG = """
     SUM(CASE WHEN arrival_time_real IS NOT NULL AND
@@ -81,13 +74,13 @@ def row_to_delays(row) -> dict:
 @app.route("/")
 def live_view():
     """Live view showing current day trips."""
-    return render_template("live.html", commit_sha=COMMIT_SHA)
+    return render_template("live.html", commit_sha=COMMIT_SHA, commit_date=COMMIT_DATE)
 
 
 @app.route("/statistiques")
 def statistiques():
     """Historical statistics page."""
-    return render_template("statistiques.html", commit_sha=COMMIT_SHA)
+    return render_template("statistiques.html", commit_sha=COMMIT_SHA, commit_date=COMMIT_DATE)
 
 
 @app.route("/api/stats")
