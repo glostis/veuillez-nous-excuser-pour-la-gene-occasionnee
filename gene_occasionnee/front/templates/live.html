@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Veuillez nous excuser pour la gêne occasionnée - Vue en direct{% endblock %}
+{% block title %}Veuillez nous excuser pour la gêne occasionnée{% endblock %}
 
 {% block content %}
 <div id="live-content">
@@ -40,8 +40,9 @@
 </div>
 
 <div style="margin-top: 20px;">
-  <a href="/statistiques" style="color: var(--color-text); text-decoration: underline;">
-    ← Voir les statistiques historiques
+  <a href="/statistiques" class="stats-button">
+    <img src="/static/train-chart-down.png" alt="" class="stats-button-icon" />
+    Voir les statistiques historiques
   </a>
 </div>
 {% endblock %}

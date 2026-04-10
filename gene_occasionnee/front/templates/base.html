@@ -2,13 +2,13 @@
 <html>
   <head>
     <title>{% block title %}Veuillez nous excuser pour la gêne occasionnée{% endblock %}</title>
-    <link rel="icon" href="/static/ter.png" type="image/png" />
+    <link rel="icon" href="/static/train-watch.png" type="image/png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
     <div class="header-with-logo">
-      <img src="/static/ter.png" alt="TER HDF Logo" class="ter-logo" />
+      <img src="/static/{% if request.path == '/statistiques' %}train-chart-down{% else %}train-watch{% endif %}.png" alt="Emoji d’une montre avec des trains dessus" class="logo" />
       <div>
         <h1>Veuillez nous excuser pour la gêne occasionnée</h1>
         <p>

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Veuillez nous excuser pour la gêne occasionnée - Statistiques{% endblock %}
+
 {% block content %}
 <!-- Date Filter Section -->
 <div class="date-filter-section" style="margin-bottom: 20px; padding: 15px; background-color: var(--color-stat-box-bg); border-radius: 5px; border: 1px solid var(--color-border);">
@@ -25,6 +27,13 @@
 
 <div id="stats"></div>
 <div id="line-stats" style="margin-top: 40px;"></div>
+
+<div style="margin-top: 20px;">
+  <a href="/" class="stats-button">
+    <img src="/static/train-watch.png" alt="" class="stats-button-icon" />
+    Retour aux trains du jour en temps réel
+  </a>
+</div>
 {% endblock %}
 
 {% block scripts %}
