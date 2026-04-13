@@ -1,6 +1,8 @@
 // Functions for delay classification and display
-function getDelayClass(delayMinutes) {
-  if (delayMinutes === null || delayMinutes === undefined) {
+function getDelayClass(delayMinutes, scheduleRelationship) {
+  if (scheduleRelationship === 'SKIPPED') {
+    return 'delay-skipped';
+  } else if (delayMinutes === null || delayMinutes === undefined) {
     return 'delay-unknown';
   } else if (delayMinutes <= 0) {
     return 'on-time';
@@ -15,8 +17,8 @@ function getDelayClass(delayMinutes) {
   }
 }
 
-function getDelayDot(delayMinutes) {
-  const delayClass = getDelayClass(delayMinutes);
+function getDelayDot(delayMinutes, scheduleRelationship) {
+  const delayClass = getDelayClass(delayMinutes, scheduleRelationship);
   return `<span class="delay-dot ${delayClass}"></span>`;
 }
 
@@ -26,7 +28,13 @@ function formatTime(timeString) {
   return timeString.split(':').slice(0, 2).join(':');
 }
 
-function formatDelayInfo(departureDelay, arrivalDelay) {
+function formatDelayInfo(departureDelay, arrivalDelay, departureScheduleRelationship, arrivalScheduleRelationship) {
+  // Check if the trip is skipped
+  const isSkipped = departureScheduleRelationship === 'SKIPPED' || arrivalScheduleRelationship === 'SKIPPED';
+  if (isSkipped) {
+    return 'Supprimé';
+  }
+
   if (departureDelay === null && arrivalDelay === null) {
     return '';
   } else if (departureDelay === arrivalDelay) {
@@ -76,7 +84,7 @@ function formatSingleDelay(delayMinutes) {
 function formatDurationValue(minutes) {
   // Shared function to format duration value (used by both live and statistics pages)
   if (minutes < 60) {
-    return `${minutes} min`;
+    return `${minutes} min`;
   } else {
     const hours = Math.floor(minutes / 60);
     const minutesPart = minutes % 60;
@@ -104,12 +112,17 @@ function formatDuration(scheduledMinutes, realMinutes) {
   }
 }
 
-function formatTripTime(scheduledTime, realTime, delayMinutes) {
+function formatTripTime(scheduledTime, realTime, delayMinutes, scheduleRelationship) {
   const scheduledFormatted = formatTime(scheduledTime);
+
+  if (scheduleRelationship === 'SKIPPED') {
+    // Skipped trip - show scheduled time with skipped dot and strikethrough
+    return `${getDelayDot(null, 'SKIPPED')} <span style="text-decoration: line-through;">${scheduledFormatted}</span> Supprimé`;
+  }
 
   if (!realTime) {
     // No realtime data - show scheduled time with unknown dot
-    return `${getDelayDot(null)} ${scheduledFormatted}`;
+    return `${getDelayDot(null, scheduleRelationship)} ${scheduledFormatted}`;
   }
 
   const realFormatted = formatTime(realTime);
@@ -117,10 +130,10 @@ function formatTripTime(scheduledTime, realTime, delayMinutes) {
 
   if (hasDelay) {
     // Show strikethrough scheduled time and real time
-    return `${getDelayDot(delayMinutes)} <span style="text-decoration: line-through;">${scheduledFormatted}</span> ${realFormatted}`;
+    return `${getDelayDot(delayMinutes, scheduleRelationship)} <span style="text-decoration: line-through;">${scheduledFormatted}</span> ${realFormatted}`;
   } else {
     // On time - show scheduled time with dot
-    return `${getDelayDot(delayMinutes)} ${scheduledFormatted}`;
+    return `${getDelayDot(delayMinutes, scheduleRelationship)} ${scheduledFormatted}`;
   }
 }
 
@@ -219,6 +232,7 @@ function generateLegend() {
     '<span><span class="delay-dot delay-15min"></span>≤15 min</span> | ' +
     '<span><span class="delay-dot delay-45min"></span>≤45 min</span> | ' +
     '<span><span class="delay-dot delay-over-45min"></span>>45 min</span> | ' +
+    '<span><span class="delay-dot delay-skipped"></span>Supprimé</span> | ' +
     '<span><span class="delay-dot delay-unknown"></span>Inconnu</span>' +
     "</div>"
   );

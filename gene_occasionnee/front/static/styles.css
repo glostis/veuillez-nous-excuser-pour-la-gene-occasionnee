@@ -154,6 +154,7 @@ tr:nth-child(even) td:first-child {
   --chart-color-delay-45min: #FF9800;
   --chart-color-delay-over-45min: #F44336;
   --chart-color-delay-unknown: #9E9E9E;
+  --chart-color-delay-skipped: #673AB7;
 
   --shadow-small: 0 2px 4px rgba(0,0,0,0.1);
   --shadow-medium: 0 2px 5px rgba(0,0,0,0.1);
@@ -229,6 +230,10 @@ tr:nth-child(even) {
 }
 [data-chart-segment="delay-unknown"] {
   background-color: var(--chart-color-delay-unknown);
+}
+
+[data-chart-segment="delay-skipped"] {
+  background-color: var(--chart-color-delay-skipped);
 }
 
 /* Legend colors */
@@ -398,6 +403,10 @@ tr:nth-child(even) {
 
 .delay-dot.delay-unknown {
   background-color: var(--chart-color-delay-unknown);
+}
+
+.delay-dot.delay-skipped {
+  background-color: var(--chart-color-delay-skipped);
 }
 
 .live-direction-table {

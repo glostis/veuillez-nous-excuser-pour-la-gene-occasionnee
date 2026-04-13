@@ -18,19 +18,32 @@ COMMIT_DATE = os.getenv("COMMIT_DATE", "unknown")
 
 DELAY_AGG = """
     SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
+             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
     SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
+             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
     SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
+             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
     SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
+             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
     SUM(CASE WHEN arrival_time_real IS NOT NULL AND
+             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
+             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
              EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
-    SUM(CASE WHEN arrival_time_real IS NULL OR arrival_time_scheduled IS NULL THEN 1 ELSE 0 END) AS delay_unknown
+    SUM(CASE WHEN departure_schedule_relationship = 'SKIPPED' OR arrival_schedule_relationship = 'SKIPPED' THEN 1 ELSE 0 END) AS delay_skipped,
+    SUM(CASE WHEN (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
+             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
+             (arrival_time_real IS NULL OR arrival_time_scheduled IS NULL) THEN 1 ELSE 0 END) AS delay_unknown
 """
 
 
@@ -65,6 +78,7 @@ def row_to_delays(row) -> dict:
         "delay_45min",
         "delay_over_45min",
         "delay_unknown",
+        "delay_skipped",
     ]:
         delays[delay] = int(row[delay])
         delays[f"{delay}_percentage"] = int(100 * row[delay] / total) if total > 0 else 0
@@ -102,7 +116,9 @@ def get_stats():
                 MIN(STRFTIME(arrival_time_scheduled, '%H:%M')) AS arrival_time_scheduled,
                 MIN(EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
                 EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60) AS duration_scheduled,
-                AVG(CASE WHEN arrival_time_real IS NOT NULL
+                AVG(CASE WHEN arrival_time_real IS NOT NULL AND
+                         (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
+                         (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL)
                     THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
                     ELSE NULL END) AS average_delay_minutes,
                 COUNT(*) AS total_trains,
@@ -283,6 +299,8 @@ def get_live_data():
                 THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
                 ELSE NULL
             END AS arrival_delay_minutes,
+            departure_schedule_relationship,
+            arrival_schedule_relationship,
             updated_at
         FROM {TABLE}
         WHERE DATE(departure_time_scheduled) = '{today}'
@@ -319,6 +337,8 @@ def get_live_data():
                 "duration_real_minutes": clean_value(row["duration_real_minutes"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
                 "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"]),
+                "departure_schedule_relationship": clean_value(row["departure_schedule_relationship"]),
+                "arrival_schedule_relationship": clean_value(row["arrival_schedule_relationship"]),
                 "updated_at": clean_value(row["updated_at"]).isoformat() if hasattr(clean_value(row["updated_at"]), 'isoformat') else clean_value(row["updated_at"]),
             }
             live_data.append(trip)

@@ -1,7 +1,7 @@
 function generateTableHTML(stats, title) {
   let html = `<h3>${title}</h3>`;
   html += '<div class="table-container"><table>';
-  html += '<thead><tr><th>Ligne</th><th>Durée</th><th>Retard moyen</th><th>Retards</th><th>Trajets</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Inconnu</th></tr></thead><tbody>';
+  html += '<thead><tr><th>Ligne</th><th>Durée</th><th>Retard moyen</th><th>Retards</th><th>Trajets</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Supprimé</th><th>Inconnu</th></tr></thead><tbody>';
 
   stats.forEach((stat) => {
     // Format the line information: C13 16:30 - 17:28
@@ -25,6 +25,7 @@ function generateTableHTML(stats, title) {
                       <td>${stat.delay_15min_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_45min_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_over_45min_percentage.toFixed(1)}%</td>
+                      <td>${stat.delay_skipped_percentage.toFixed(1)}%</td>
                       <td>${stat.delay_unknown_percentage.toFixed(1)}%</td>
                   </tr>`;
   });
@@ -51,6 +52,7 @@ function generateGlobalChartHTML(stats) {
   if (stats.delay_15min > 0) segments.push({count: stats.delay_15min, type: 'delay-15min', label: '≤15 min'});
   if (stats.delay_45min > 0) segments.push({count: stats.delay_45min, type: 'delay-45min', label: '≤45 min'});
   if (stats.delay_over_45min > 0) segments.push({count: stats.delay_over_45min, type: 'delay-over-45min', label: '>45 min'});
+  if (stats.delay_skipped > 0) segments.push({count: stats.delay_skipped, type: 'delay-skipped', label: 'Supprimé'});
   if (stats.delay_unknown > 0) segments.push({count: stats.delay_unknown, type: 'delay-unknown', label: 'Inconnu'});
 
   // Calculate widths ensuring total is 100%
@@ -100,6 +102,7 @@ function generateInlineChartHTML(stat) {
   if (stat.delay_15min > 0) segments.push({count: stat.delay_15min, type: 'delay-15min', label: '≤15 min'});
   if (stat.delay_45min > 0) segments.push({count: stat.delay_45min, type: 'delay-45min', label: '≤45 min'});
   if (stat.delay_over_45min > 0) segments.push({count: stat.delay_over_45min, type: 'delay-over-45min', label: '>45 min'});
+  if (stat.delay_skipped > 0) segments.push({count: stat.delay_skipped, type: 'delay-skipped', label: 'Supprimé'});
   if (stat.delay_unknown > 0) segments.push({count: stat.delay_unknown, type: 'delay-unknown', label: 'Inconnu'});
 
   // Calculate widths ensuring total is 100%
@@ -199,6 +202,10 @@ async function loadStats() {
     html += `<div class="stat-box">
                     <h3>>45 min de retard</h3>
                     <div class="stat-value">${stats.delay_over_45min} (${stats.delay_over_45min_percentage.toFixed(1)}%)</div>
+                </div>`;
+    html += `<div class="stat-box">
+                    <h3>Supprimé</h3>
+                    <div class="stat-value">${stats.delay_skipped} (${stats.delay_skipped_percentage.toFixed(1)}%)</div>
                 </div>`;
     html += `<div class="stat-box">
                     <h3>Inconnu</h3>
@@ -313,6 +320,7 @@ async function generateTimelineChartHTML() {
           delay_15min: 0,
           delay_45min: 0,
           delay_over_45min: 0,
+          delay_skipped: 0,
           delay_unknown: 0,
         };
       }
@@ -324,6 +332,7 @@ async function generateTimelineChartHTML() {
       groupedData[groupKey].delay_15min += entry.delay_15min;
       groupedData[groupKey].delay_45min += entry.delay_45min;
       groupedData[groupKey].delay_over_45min += entry.delay_over_45min;
+      groupedData[groupKey].delay_skipped += entry.delay_skipped;
       groupedData[groupKey].delay_unknown += entry.delay_unknown;
     });
 
@@ -417,6 +426,19 @@ async function generateTimelineChartHTML() {
         html += `<div data-chart-segment="delay-over-45min" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title=">45 min: ${period.delay_over_45min}"></div>`;
       }
 
+      // Skipped
+      if (period.delay_skipped > 0) {
+        const height = period.delay_skipped * segmentHeight;
+        const bottom =
+          (period.on_time +
+            period.delay_5min +
+            period.delay_15min +
+            period.delay_45min +
+            period.delay_over_45min) *
+          segmentHeight;
+        html += `<div data-chart-segment="delay-skipped" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="Supprimé: ${period.delay_skipped}"></div>`;
+      }
+
       // Unknown
       if (period.delay_unknown > 0) {
         const height = period.delay_unknown * segmentHeight;
@@ -425,7 +447,8 @@ async function generateTimelineChartHTML() {
             period.delay_5min +
             period.delay_15min +
             period.delay_45min +
-            period.delay_over_45min) *
+            period.delay_over_45min +
+            period.delay_skipped) *
           segmentHeight;
         html += `<div data-chart-segment="delay-unknown" style="width: 100%; height: ${height}px; position: absolute; bottom: ${bottom}px;" title="Inconnu: ${period.delay_unknown}"></div>`;
       }

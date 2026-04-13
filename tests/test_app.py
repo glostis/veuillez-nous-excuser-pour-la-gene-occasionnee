@@ -51,7 +51,10 @@ def setup_test_database(request):
             arrival_time_real TIMESTAMP WITH TIME ZONE,
             arrival_gtfs_delay INTEGER,
             created_at TIMESTAMP WITH TIME ZONE,
-            updated_at TIMESTAMP WITH TIME ZONE
+            updated_at TIMESTAMP WITH TIME ZONE,
+            departure_schedule_relationship VARCHAR,
+            arrival_schedule_relationship VARCHAR,
+            trip_schedule_relationship VARCHAR
         )
     """)
 
@@ -211,7 +214,7 @@ def setup_test_database(request):
     for row in data:
         conn.execute(
             f"""
-            INSERT INTO {TABLE} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{base_date}', '{base_date}')
+            INSERT INTO {TABLE} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{base_date}', '{base_date}', NULL, NULL, NULL)
         """,
             row,
         )
@@ -442,7 +445,7 @@ def test_get_latest_timestamp(test_client):
     data = response.get_json()
 
     # Should return the latest updated_at timestamp (2024-01-03 from our data)
-    assert data["updated_at"] == "01/01/2024 à 00h00 (heure de Compiègne)"
+    assert data["formatted_timestamp"] == "01/01/2024 à 00h00 (heure de Compiègne)"
     assert data["is_outdated"]
 
 
