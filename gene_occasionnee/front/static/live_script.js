@@ -1,11 +1,16 @@
 function generateTripHTML(trip, latestTimestamp) {
   // Check if this trip is a past trip (has an updated_at earlier than the latest timestamp)
-  const isPastTrip = trip.updated_at && latestTimestamp && new Date(trip.updated_at) < new Date(latestTimestamp);
-  const pastTripClass = isPastTrip ? 'past-trip' : '';
+  const isPastTrip =
+    trip.updated_at &&
+    latestTimestamp &&
+    new Date(trip.updated_at) < new Date(latestTimestamp);
+  const pastTripClass = isPastTrip ? "past-trip" : "";
 
   // Determine schedule relationship for display
-  const departureScheduleRelationship = trip.departure_schedule_relationship || null;
-  const arrivalScheduleRelationship = trip.arrival_schedule_relationship || null;
+  const departureScheduleRelationship = trip.siri_departure_status || null;
+  const arrivalScheduleRelationship = trip.siri_arrival_status || null;
+  console.log("departureScheduleRelationship", departureScheduleRelationship);
+  console.log("arrivalScheduleRelationship", arrivalScheduleRelationship);
 
   return `
     <tr class="live-trip-row ${pastTripClass}">
@@ -30,8 +35,8 @@ async function loadLiveData() {
   try {
     // Fetch live data and latest timestamp in parallel
     const [liveResponse, timestampResponse] = await Promise.all([
-      fetch('/api/live'),
-      fetch('/api/latest-timestamp')
+      fetch("/api/live"),
+      fetch("/api/latest-timestamp"),
     ]);
 
     const data = await liveResponse.json();
@@ -42,42 +47,59 @@ async function loadLiveData() {
     const compiegneToParis = [];
     const parisToCompiegne = [];
 
-    data.forEach(trip => {
-      if (trip.direction === 'Compiègne → Paris Nord') {
+    data.forEach((trip) => {
+      if (trip.direction === "Compiègne → Paris Nord") {
         compiegneToParis.push(trip);
-      } else if (trip.direction === 'Paris Nord → Compiègne') {
+      } else if (trip.direction === "Paris Nord → Compiègne") {
         parisToCompiegne.push(trip);
       }
     });
 
     // Sort by departure time
-    compiegneToParis.sort((a, b) => a.departure_time_scheduled.localeCompare(b.departure_time_scheduled));
-    parisToCompiegne.sort((a, b) => a.departure_time_scheduled.localeCompare(b.departure_time_scheduled));
+    compiegneToParis.sort((a, b) =>
+      a.departure_time_scheduled.localeCompare(b.departure_time_scheduled),
+    );
+    parisToCompiegne.sort((a, b) =>
+      a.departure_time_scheduled.localeCompare(b.departure_time_scheduled),
+    );
 
     // Generate HTML with latest timestamp for past trip detection
-    const compiegneHTML = compiegneToParis.map(trip => generateTripHTML(trip, latestTimestamp)).join('');
-    const parisHTML = parisToCompiegne.map(trip => generateTripHTML(trip, latestTimestamp)).join('');
+    const compiegneHTML = compiegneToParis
+      .map((trip) => generateTripHTML(trip, latestTimestamp))
+      .join("");
+    const parisHTML = parisToCompiegne
+      .map((trip) => generateTripHTML(trip, latestTimestamp))
+      .join("");
 
-    document.getElementById('compiegne-to-paris-trips').innerHTML = compiegneHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';
-    document.getElementById('paris-to-compiegne-trips').innerHTML = parisHTML || '<p>Aucun train trouvé pour cette direction aujourd\'hui.</p>';
+    document.getElementById("compiegne-to-paris-trips").innerHTML =
+      compiegneHTML ||
+      "<p>Aucun train trouvé pour cette direction aujourd'hui.</p>";
+    document.getElementById("paris-to-compiegne-trips").innerHTML =
+      parisHTML ||
+      "<p>Aucun train trouvé pour cette direction aujourd'hui.</p>";
 
     // Add legend below each table
-    const compiegneTable = document.getElementById('compiegne-to-paris-trips').closest('.live-direction-table');
-    if (compiegneTable && !compiegneTable.querySelector('.chart-legend')) {
+    const compiegneTable = document
+      .getElementById("compiegne-to-paris-trips")
+      .closest(".live-direction-table");
+    if (compiegneTable && !compiegneTable.querySelector(".chart-legend")) {
       const legendHTML = generateLegend();
-      compiegneTable.insertAdjacentHTML('beforeend', legendHTML);
+      compiegneTable.insertAdjacentHTML("beforeend", legendHTML);
     }
 
-    const parisTable = document.getElementById('paris-to-compiegne-trips').closest('.live-direction-table');
-    if (parisTable && !parisTable.querySelector('.chart-legend')) {
+    const parisTable = document
+      .getElementById("paris-to-compiegne-trips")
+      .closest(".live-direction-table");
+    if (parisTable && !parisTable.querySelector(".chart-legend")) {
       const legendHTML = generateLegend();
-      parisTable.insertAdjacentHTML('beforeend', legendHTML);
+      parisTable.insertAdjacentHTML("beforeend", legendHTML);
     }
-
   } catch (error) {
-    console.error('Erreur lors du chargement des données en direct :', error);
-    document.getElementById('compiegne-to-paris-trips').innerHTML = '<p>Erreur lors du chargement des données. Veuillez rafraîchir la page.</p>';
-    document.getElementById('paris-to-compiegne-trips').innerHTML = '<p>Erreur lors du chargement des données. Veuillez rafraîchir la page.</p>';
+    console.error("Erreur lors du chargement des données en direct :", error);
+    document.getElementById("compiegne-to-paris-trips").innerHTML =
+      "<p>Erreur lors du chargement des données. Veuillez rafraîchir la page.</p>";
+    document.getElementById("paris-to-compiegne-trips").innerHTML =
+      "<p>Erreur lors du chargement des données. Veuillez rafraîchir la page.</p>";
   }
 }
 

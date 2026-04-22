@@ -1,24 +1,25 @@
 """
-GTFS Real-Time Data Ingestion Script
+SIRI ET Lite Data Ingestion Script
 
-This script processes GTFS real-time data to update actual departure and arrival times
+This script processes SIRI ET Lite data to update actual departure and arrival times
 for trips between Paris Gare du Nord and Compiègne in the DuckDB database.
 
-Usage: python -m gene_occasionnee.back.ingest_gtfs_rt
+Usage: uv run python -m gene_occasionnee.back.ingest_gtfs_rt
 """
 
-import re
+import xml.etree.ElementTree as ET
 from datetime import datetime
 
 import requests
-from google.transit import gtfs_realtime_pb2
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from gene_occasionnee import DB_PATH, TABLE, duckdb_connect
-from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_RT_TU_URL, PARIS_NORD_STOP_ID
+from gene_occasionnee.back import SIRI_COMPIEGNE_STOP_ID, SIRI_ET_LITE_URL, SIRI_PARIS_NORD_STOP_ID
 from gene_occasionnee.back.ingest_gtfs_static import main as static_main
 
-debug = False
+debug = True
+
+SIRI_NS = {"siri": "http://www.siri.org.uk/siri"}
 
 
 @retry(
@@ -26,56 +27,83 @@ debug = False
     wait=wait_exponential(multiplier=1, min=4, max=10),
     retry=retry_if_exception_type(Exception),
 )
-def fetch_and_decode_gtfs_rt():
-    """Fetch and decode GTFS-RT data."""
+def fetch_and_parse_siri_et_lite():
+    """Fetch and parse SIRI ET Lite XML data."""
     if debug:
-        print("🔄 Fetching GTFS-RT data...")
+        print("🔄 Fetching SIRI ET Lite data...")
 
-    response = requests.get(GTFS_RT_TU_URL, timeout=20)
+    response = requests.get(SIRI_ET_LITE_URL, timeout=60)
     response.raise_for_status()
 
     if debug:
         print(f"📥 Downloaded {len(response.content)} bytes")
 
-    # Decode the protocol buffer
-    feed = gtfs_realtime_pb2.FeedMessage()
-    feed.ParseFromString(response.content)
+    # Parse the XML
+    try:
+        xml_data = response.content.decode("utf-8")
+        root = ET.fromstring(xml_data)
 
-    if debug:
-        print(f"🔍 Decoded {len(feed.entity)} entities")
+        if debug:
+            print("🔍 Parsed SIRI ET Lite XML")
 
-    return feed
+        return root
+    except ET.ParseError as e:
+        raise ValueError(f"Failed to parse SIRI ET Lite XML: {e}")
 
 
 def today():
     return datetime.now().strftime("%Y-%m-%d")
 
 
-def get_trip_ids_from_duckdb():
-    """Get trip_ids from DuckDB for today's trips."""
+def get_trips_from_duckdb():
+    """Get trips from DuckDB for today's trips."""
     if debug:
-        print("🔍 Getting trip IDs from DuckDB for today's trips...")
+        print("🔍 Getting today's trips from DuckDB...")
 
     conn = duckdb_connect(DB_PATH, read_only=True)
 
-    # Query trip_ids for today
-    result = conn.execute(f"SELECT trip_id FROM {TABLE} WHERE DATE(departure_time_scheduled) = ?", [today()]).fetchall()
+    # Query trips for today
+    result = conn.execute(
+        f"""
+        SELECT
+            trip_id,
+            departure_station_name,
+            arrival_station_name,
+            departure_time_scheduled,
+            arrival_time_scheduled,
+            trip_headsign as train_number
+        FROM {TABLE}
+        WHERE DATE(departure_time_scheduled) = ?
+    """,
+        [today()],
+    ).fetchall()
 
     # Close connection
     conn.close()
 
-    # Extract trip_ids from result
-    trip_ids = [row[0] for row in result]
+    trips = []
+    for row in result:
+        trips.append(
+            {
+                "trip_id": row[0],
+                "departure_station": row[1],
+                "arrival_station": row[2],
+                "departure_time_scheduled": row[3],
+                "arrival_time_scheduled": row[4],
+                "train_number": row[5],
+            }
+        )
+
     if debug:
-        print(f"📊 Found {len(trip_ids)} trip IDs for today")
+        print(f"📊 Found {len(trips)} trips for today")
 
-    return trip_ids
+    return trips
 
 
-def update_real_times_in_duckdb(trip_updates):
-    """Update real departure and arrival times in DuckDB."""
+def update_siri_times_in_duckdb(trip_updates):
+    """Update SIRI real departure and arrival times in DuckDB."""
     if debug:
-        print("💾 Updating real times in DuckDB...")
+        print("💾 Updating SIRI times in DuckDB...")
 
     conn = duckdb_connect(DB_PATH, read_only=False)
 
@@ -84,33 +112,31 @@ def update_real_times_in_duckdb(trip_updates):
 
     # Update each trip
     updated_count = 0
-    for trip_id, departure, arrival, trip_sch_rel, dep_sch_rel, arr_sch_rel in trip_updates:
+    for trip_id, departure_time_real, arrival_time_real, departure_status, arrival_status, trip_status in trip_updates:
         update_fields = []
         update_values = []
 
-        if departure:
-            update_fields.extend(["departure_time_real = ?", "departure_gtfs_delay = ?"])
-            update_values.extend([departure["time"], departure["delay"]])
+        if departure_time_real:
+            update_fields.append("siri_departure_time_real = ?")
+            update_values.append(departure_time_real)
 
-        if arrival:
-            update_fields.extend(["arrival_time_real = ?", "arrival_gtfs_delay = ?"])
-            update_values.extend([arrival["time"], arrival["delay"]])
+        if arrival_time_real:
+            update_fields.append("siri_arrival_time_real = ?")
+            update_values.append(arrival_time_real)
 
-        # Always update schedule relationships if provided
-        if trip_sch_rel is not None:
-            update_fields.append("trip_schedule_relationship = ?")
-            update_values.append(trip_sch_rel)
+        if departure_status:
+            update_fields.append("siri_departure_status = ?")
+            update_values.append(departure_status)
 
-        if dep_sch_rel is not None:
-            update_fields.append("departure_schedule_relationship = ?")
-            update_values.append(dep_sch_rel)
+        if arrival_status:
+            update_fields.append("siri_arrival_status = ?")
+            update_values.append(arrival_status)
 
-        if arr_sch_rel is not None:
-            update_fields.append("arrival_schedule_relationship = ?")
-            update_values.append(arr_sch_rel)
+        if trip_status:
+            update_fields.append("siri_trip_status = ?")
+            update_values.append(trip_status)
 
-        # Always update the timestamp
-        update_fields.append("updated_at = ?")
+        update_fields.append("siri_updated_at = ?")
         update_values.append(updated_at)
 
         if update_fields:
@@ -124,218 +150,245 @@ def update_real_times_in_duckdb(trip_updates):
     conn.close()
 
     if debug:
-        print(f"✅ Updated real times for {updated_count} trips")
+        print(f"✅ Updated SIRI times for {updated_count} trips")
     return updated_count
 
 
-def parse_gtfs_rt_timestamp(timestamp):
-    """Parse GTFS-RT timestamp (Unix epoch) to datetime."""
-    if timestamp is None:
+def parse_siri_timestamp(timestamp_str):
+    """Parse SIRI timestamp (ISO 8601) to datetime."""
+    if not timestamp_str:
         return None
-    return datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
+
+    # SIRI timestamps are in format like "2026-04-22T07:04:00+02:00"
+    # Convert to database format "YYYY-MM-DD HH:MM:SS"
+    try:
+        # Parse the ISO format and convert to naive datetime for storage
+        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
 
 
-def clean_stop_id(stop_id: str) -> str:
-    """Extract numeric ID from stop ID string."""
-    match = re.search(r"(\d{8})", stop_id or "")
-    return match.group(1) if match else (stop_id or "").strip()
+def get_siri_trip_status(estimated_vehicle_journey):
+    """Determine trip status from SIRI data."""
+    # Check if trip is monitored
+    monitored = estimated_vehicle_journey.find(".//{http://www.siri.org.uk/siri}Monitored")
+    if monitored is not None and monitored.text == "false":
+        return "UNMONITORED"
+
+    # Check if prediction is inaccurate
+    prediction_inaccurate = estimated_vehicle_journey.find(".//{http://www.siri.org.uk/siri}PredictionInaccurate")
+    if prediction_inaccurate is not None and prediction_inaccurate.text == "true":
+        return "PREDICTION_INACCURATE"
+
+    return "NORMAL"
 
 
-def process_gtfs_rt_data(feed, trip_ids):
-    """Process GTFS real-time data and find matching trips."""
+def get_siri_call_status(estimated_call):
+    """Determine call status from SIRI EstimatedCall."""
+    # Check if this call is cancelled
+    cancellation = estimated_call.find(".//{http://www.siri.org.uk/siri}Cancellation")
+    if cancellation is not None:
+        return "CANCELLED"
+
+    # Check if prediction is inaccurate
+    prediction_inaccurate = estimated_call.find(".//{http://www.siri.org.uk/siri}PredictionInaccurate")
+    if prediction_inaccurate is not None and prediction_inaccurate.text == "true":
+        return "PREDICTION_INACCURATE"
+
+    return "NORMAL"
+
+
+def process_siri_et_lite_data(root, db_trips):
+    """Process SIRI ET Lite data and find matching trips using train number and date."""
     if debug:
-        print("🔍 Processing GTFS real-time data...")
-        print(f"📋 Looking for {len(trip_ids)} trip IDs from database")
+        print("🔍 Processing SIRI ET Lite data...")
+        print(f"📋 Looking for {len(db_trips)} trips from database")
 
-    # Map for trip schedule relationships
-    TripSchRel = gtfs_realtime_pb2.TripDescriptor.ScheduleRelationship
-    StopSchRel = gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.ScheduleRelationship
-
-    TRIP_SCHEDULE_RELATIONSHIP_NAME = {
-        TripSchRel.SCHEDULED: "SCHEDULED",
-        TripSchRel.ADDED: "ADDED",
-        TripSchRel.UNSCHEDULED: "UNSCHEDULED",
-        TripSchRel.CANCELED: "CANCELED",
-    }
-
-    STOP_SCHEDULE_RELATIONSHIP_NAME = {
-        StopSchRel.SCHEDULED: "SCHEDULED",
-        StopSchRel.SKIPPED: "SKIPPED",
-        StopSchRel.NO_DATA: "NO_DATA",
-        StopSchRel.UNSCHEDULED: "UNSCHEDULED",
-    }
-
-    # Process the GTFS-RT data
+    # Process the SIRI ET Lite data
     trip_updates = []
-    total_trips_checked = 0
-    trips_with_matching_stations = 0
+    total_journeys_checked = 0
+    journeys_with_matching_stations = 0
+    journeys_with_matching_trains = 0
 
-    for entity in feed.entity:
-        if not entity.HasField("trip_update"):
+    # Find all EstimatedVehicleJourney elements
+    estimated_vehicle_journeys = root.findall(".//siri:EstimatedVehicleJourney", SIRI_NS)
+
+    for journey in estimated_vehicle_journeys:
+        total_journeys_checked += 1
+
+        # Extract train number from SIRI data
+        train_number_ref = journey.find(".//siri:TrainNumberRef", SIRI_NS)
+        siri_train_number = train_number_ref.text if train_number_ref is not None else None
+
+        if not siri_train_number:
             continue
 
-        trip_update = entity.trip_update
-        trip = trip_update.trip
+        # Extract date from DataFrameRef
+        data_frame_ref = journey.find(".//siri:DataFrameRef", SIRI_NS)
+        journey_date = data_frame_ref.text if data_frame_ref is not None else None
 
-        trip_id = trip.trip_id or ""
-        total_trips_checked += 1
-
-        # Check if this trip is in our database
-        if trip_id not in trip_ids:
+        if not journey_date:
             continue
 
-        # Get trip-level schedule relationship
-        trip_schedule_relationship = None
-        if trip.HasField("schedule_relationship"):
-            trip_schedule_relationship = TRIP_SCHEDULE_RELATIONSHIP_NAME.get(trip.schedule_relationship, "UNKNOWN")
+        # Find matching trips in our database by train number and date
+        matching_db_trips = []
+        for db_trip in db_trips:
+            if db_trip["train_number"] == siri_train_number:
+                # Check if the date matches (journey_date should be YYYY-MM-DD)
+                scheduled_datetime = db_trip["departure_time_scheduled"]
+                if scheduled_datetime:
+                    # Convert datetime to string if needed
+                    if hasattr(scheduled_datetime, "strftime"):
+                        scheduled_date = scheduled_datetime.strftime("%Y-%m-%d")
+                    else:
+                        scheduled_date = str(scheduled_datetime).split(" ")[0]
+                    if scheduled_date == journey_date:
+                        matching_db_trips.append(db_trip)
 
-        # Process stop time updates - collect all real-time data for our stations
-        paris_nord_times = {}
-        compiegne_times = {}
-        paris_nord_schedule_relationship = None
-        compiegne_schedule_relationship = None
+        if not matching_db_trips:
+            continue
+
+        journeys_with_matching_trains += 1
+
+        # Get trip status
+        trip_status = get_siri_trip_status(journey)
+
+        # Process estimated calls - collect all real-time data for our stations
+        paris_nord_departure = None
+        paris_nord_arrival = None
+        compiegne_departure = None
+        compiegne_arrival = None
+        paris_nord_status = None
+        compiegne_status = None
         found_relevant_station = False
 
-        for stu in trip_update.stop_time_update:
-            # Check if this is one of our target stations (using cleaned IDs)
-            if stu.stop_id in {PARIS_NORD_STOP_ID, COMPIEGNE_STOP_ID}:
+        estimated_calls = journey.findall(".//siri:EstimatedCalls/siri:EstimatedCall", SIRI_NS)
+        for call in estimated_calls:
+            stop_point_ref = call.find("siri:StopPointRef", SIRI_NS)
+            if stop_point_ref is None:
+                continue
+
+            stop_id = stop_point_ref.text
+
+            # Check if this is one of our target stations
+            if stop_id in {SIRI_PARIS_NORD_STOP_ID, SIRI_COMPIEGNE_STOP_ID}:
                 found_relevant_station = True
+                call_status = get_siri_call_status(call)
 
-                # Get stop-level schedule relationship
-                if stu.HasField("schedule_relationship"):
-                    stop_sch_rel = STOP_SCHEDULE_RELATIONSHIP_NAME.get(stu.schedule_relationship, "UNKNOWN")
-                    if stu.stop_id == PARIS_NORD_STOP_ID:
-                        paris_nord_schedule_relationship = stop_sch_rel
-                    elif stu.stop_id == COMPIEGNE_STOP_ID:
-                        compiegne_schedule_relationship = stop_sch_rel
+                # Get expected times (these are the real-time predictions)
+                expected_departure_time = None
+                expected_arrival_time = None
 
-                # Get absolute predicted times (these are already real-time predictions)
-                arrival_time = stu.arrival.time if (stu.HasField("arrival") and stu.arrival.HasField("time")) else None
-                departure_time = (
-                    stu.departure.time if (stu.HasField("departure") and stu.departure.HasField("time")) else None
-                )
+                expected_departure_elem = call.find("siri:ExpectedDepartureTime", SIRI_NS)
+                if expected_departure_elem is not None:
+                    expected_departure_time = parse_siri_timestamp(expected_departure_elem.text)
 
-                # Also get delay for informational purposes
-                arrival_delay = (
-                    stu.arrival.delay if (stu.HasField("arrival") and stu.arrival.HasField("delay")) else None
-                )
-                departure_delay = (
-                    stu.departure.delay if (stu.HasField("departure") and stu.departure.HasField("delay")) else None
-                )
+                expected_arrival_elem = call.find("siri:ExpectedArrivalTime", SIRI_NS)
+                if expected_arrival_elem is not None:
+                    expected_arrival_time = parse_siri_timestamp(expected_arrival_elem.text)
 
-                if stu.stop_id == PARIS_NORD_STOP_ID:
-                    if departure_time:
-                        paris_nord_times["departure"] = {
-                            "time": parse_gtfs_rt_timestamp(departure_time),
-                            "delay": departure_delay,
-                        }
-                    if arrival_time:
-                        paris_nord_times["arrival"] = {
-                            "time": parse_gtfs_rt_timestamp(arrival_time),
-                            "delay": arrival_delay,
-                        }
-
-                elif stu.stop_id == COMPIEGNE_STOP_ID:
-                    if departure_time:
-                        compiegne_times["departure"] = {
-                            "time": parse_gtfs_rt_timestamp(departure_time),
-                            "delay": departure_delay,
-                        }
-                    if arrival_time:
-                        compiegne_times["arrival"] = {
-                            "time": parse_gtfs_rt_timestamp(arrival_time),
-                            "delay": arrival_delay,
-                        }
+                if stop_id == SIRI_PARIS_NORD_STOP_ID:
+                    paris_nord_departure = expected_departure_time
+                    paris_nord_arrival = expected_arrival_time
+                    paris_nord_status = call_status
+                elif stop_id == SIRI_COMPIEGNE_STOP_ID:
+                    compiegne_departure = expected_departure_time
+                    compiegne_arrival = expected_arrival_time
+                    compiegne_status = call_status
 
         if found_relevant_station:
-            trips_with_matching_stations += 1
+            journeys_with_matching_stations += 1
 
-        # Determine direction and update accordingly
-        # Get scheduled times from database to determine direction
-        conn = duckdb_connect(DB_PATH, read_only=True)
-        db_result = conn.execute(
-            f"SELECT departure_station_name, arrival_station_name FROM {TABLE} WHERE trip_id = ?",
-            [trip_id],
-        ).fetchone()
-        conn.close()
-
-        if db_result:
-            departure_station = db_result[0]
-            arrival_station = db_result[1]
+        # For each matching database trip, determine direction and update accordingly
+        for db_trip in matching_db_trips:
+            trip_id = db_trip["trip_id"]
+            departure_station = db_trip["departure_station"]
+            arrival_station = db_trip["arrival_station"]
 
             # Determine what to update based on direction
             if departure_station == "Paris Nord" and arrival_station == "Compiègne":
-                departure = paris_nord_times.get("departure")
-                arrival = compiegne_times.get("arrival")
-                departure_sch_rel = paris_nord_schedule_relationship
-                arrival_sch_rel = compiegne_schedule_relationship
+                departure_time_real = paris_nord_departure
+                arrival_time_real = compiegne_arrival
+                departure_status = paris_nord_status
+                arrival_status = compiegne_status
             elif departure_station == "Compiègne" and arrival_station == "Paris Nord":
-                departure = compiegne_times.get("departure")
-                arrival = paris_nord_times.get("arrival")
-                departure_sch_rel = compiegne_schedule_relationship
-                arrival_sch_rel = paris_nord_schedule_relationship
+                departure_time_real = compiegne_departure
+                arrival_time_real = paris_nord_arrival
+                departure_status = compiegne_status
+                arrival_status = paris_nord_status
             else:
-                raise ValueError(
-                    f"Unknown direction for trip {trip_id}: departure {departure_station}, arrival {arrival_station}"
+                if debug:
+                    print(
+                        f"⚠️ Unknown direction for trip {trip_id}: departure {departure_station}, arrival {arrival_station}"
+                    )
+                continue
+
+            # Add to updates if we found relevant data or status updates
+            # We want to track status even if no time updates are available
+            if departure_time_real or arrival_time_real or departure_status or arrival_status or trip_status:
+                trip_updates.append(
+                    (trip_id, departure_time_real, arrival_time_real, departure_status, arrival_status, trip_status)
                 )
 
-            # Add to updates if we found relevant data or schedule relationships
-            # We want to track schedule relationships even if no time updates are available
-            if departure or arrival or trip_schedule_relationship or departure_sch_rel or arrival_sch_rel:
-                trip_updates.append((trip_id, departure, arrival, trip_schedule_relationship, departure_sch_rel, arrival_sch_rel))
-
     if debug:
-        print(f"📊 Processed {total_trips_checked} trips from GTFS-RT feed")
-        print(f"📊 Found {trips_with_matching_stations} trips with our target stations")
+        print(f"📊 Processed {total_journeys_checked} journeys from SIRI ET Lite feed")
+        print(f"📊 Found {journeys_with_matching_stations} journeys with our target stations")
+        print(f"📊 Found {journeys_with_matching_trains} journeys with matching train numbers")
         print(f"📊 Found {len(trip_updates)} trips with real-time updates")
     return trip_updates
 
 
 def main():
     if debug:
-        print("🚆 Starting GTFS Real-Time Data Ingestion")
+        print("🚆 Starting SIRI ET Lite Data Ingestion")
         print("=" * 60)
 
     try:
-        # Step 1: Get trip IDs from DuckDB for today
-        trip_ids = get_trip_ids_from_duckdb()
+        # Step 1: Get trips from DuckDB for today
+        db_trips = get_trips_from_duckdb()
 
-        if not trip_ids:
+        if not db_trips:
             if debug:
-                print("⚠️ No trip IDs found for today in DuckDB. Running GTFS static data ingestion first...")
+                print("⚠️ No trips found for today in DuckDB. Running GTFS static data ingestion first...")
             static_main()
-            trip_ids = get_trip_ids_from_duckdb()
-            if not trip_ids:
-                print("⚠️ No trip IDs found for today in DuckDB. Exiting.")
+            db_trips = get_trips_from_duckdb()
+            if not db_trips:
+                print("⚠️ No trips found for today in DuckDB. Exiting.")
                 return
 
-        # Step 2: Fetch and decode GTFS real-time data
-        feed = fetch_and_decode_gtfs_rt()
+        # Step 2: Fetch and parse SIRI ET Lite data
+        root = fetch_and_parse_siri_et_lite()
 
-        # Step 3: Process GTFS-RT data and find matching trips
-        trip_updates = process_gtfs_rt_data(feed, trip_ids)
+        nb_siri_journeys = len(root.findall(".//siri:EstimatedVehicleJourney", SIRI_NS))
 
-        # Step 4: Update real times in DuckDB
+        # Step 3: Process SIRI ET Lite data and find matching trips
+        trip_updates = process_siri_et_lite_data(root, db_trips)
+
+        # Step 4: Update SIRI times in DuckDB
         if trip_updates:
-            updated_count = update_real_times_in_duckdb(trip_updates)
+            updated_count = update_siri_times_in_duckdb(trip_updates)
             print(
                 f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]",
-                f"GTFS-RT: Fetched {len(trip_ids)} trips in DB,",
-                f"decoded {len(feed.entity)} entities from feed,",
+                f"SIRI-ET-LITE: Fetched {len(db_trips)} trips in DB,",
+                f"processed SIRI {nb_siri_journeys} journeys,",
                 f"updated {updated_count} trips in DB",
             )
         else:
             if debug:
                 print("⚠️ No real-time updates found for today's trips")
-            print(f"GTFS-RT: Fetched {len(trip_ids)} trips in DB, no updates needed")
+            print(
+                f"SIRI-ET-LITE: Fetched {len(db_trips)} trips in DB, processed SIRI {nb_siri_journeys} journeys,",
+                " no updates needed",
+            )
 
         if debug:
             print("=" * 60)
-            print("✅ GTFS Real-Time Data Ingestion Completed!")
-            print("📊 Updated real departure/arrival times for trips")
+            print("✅ SIRI ET Lite Data Ingestion Completed!")
+            print("📊 Updated SIRI real departure/arrival times for trips")
 
     except Exception as e:
-        print(f"❌ Error during GTFS real-time data ingestion: {e}")
+        print(f"❌ Error during SIRI ET Lite data ingestion: {e}")
         raise
 
 

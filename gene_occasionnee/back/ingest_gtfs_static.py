@@ -17,7 +17,7 @@ import requests
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from gene_occasionnee import DB_PATH, TABLE, duckdb_connect
-from gene_occasionnee.back import COMPIEGNE_STOP_ID, GTFS_STATIC_URL, PARIS_NORD_STOP_ID
+from gene_occasionnee.back import GTFS_COMPIEGNE_STOP_ID, GTFS_PARIS_NORD_STOP_ID, GTFS_STATIC_URL
 
 debug = False
 
@@ -106,8 +106,8 @@ def find_trips_through_both_stations(extract_dir, service_dates_today):
         if service_id is None or service_id not in service_dates_today:
             continue
 
-        has_paris_nord = any(s["stop_id"] == PARIS_NORD_STOP_ID for s in stops)
-        has_compiegne = any(s["stop_id"] == COMPIEGNE_STOP_ID for s in stops)
+        has_paris_nord = any(s["stop_id"] == GTFS_PARIS_NORD_STOP_ID for s in stops)
+        has_compiegne = any(s["stop_id"] == GTFS_COMPIEGNE_STOP_ID for s in stops)
 
         if has_paris_nord and has_compiegne:
             relevant_trips.append({"trip_id": trip_id, "stops": stops})
@@ -201,17 +201,15 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
             trip_headsign VARCHAR,
             departure_station_name VARCHAR,
             departure_time_scheduled TIMESTAMP WITH TIME ZONE,
-            departure_time_real TIMESTAMP WITH TIME ZONE,
-            departure_gtfs_delay INTEGER,
-            departure_schedule_relationship VARCHAR,
+            siri_departure_time_real TIMESTAMP WITH TIME ZONE,
+            siri_departure_status VARCHAR,
             arrival_station_name VARCHAR,
             arrival_time_scheduled TIMESTAMP WITH TIME ZONE,
-            arrival_time_real TIMESTAMP WITH TIME ZONE,
-            arrival_gtfs_delay INTEGER,
-            arrival_schedule_relationship VARCHAR,
-            trip_schedule_relationship VARCHAR,
+            siri_arrival_time_real TIMESTAMP WITH TIME ZONE,
+            siri_arrival_status VARCHAR,
+            siri_trip_status VARCHAR,
             created_at TIMESTAMP WITH TIME ZONE,
-            updated_at TIMESTAMP WITH TIME ZONE
+            siri_updated_at TIMESTAMP WITH TIME ZONE
         )
     """)
 
@@ -238,17 +236,17 @@ def store_in_duckdb(relevant_trips, extract_dir, service_dates_today):
         compiegne_stop = None
 
         for stop in stops:
-            if stop["stop_id"] == PARIS_NORD_STOP_ID:
+            if stop["stop_id"] == GTFS_PARIS_NORD_STOP_ID:
                 paris_nord_stop = stop
-            elif stop["stop_id"] == COMPIEGNE_STOP_ID:
+            elif stop["stop_id"] == GTFS_COMPIEGNE_STOP_ID:
                 compiegne_stop = stop
 
         if paris_nord_stop and compiegne_stop:
             # Determine direction
             # If Paris Nord comes before Compiègne in the sequence, it's Paris -> Compiègne
             # Otherwise it's Compiègne -> Paris
-            paris_index = next(i for i, s in enumerate(stops) if s["stop_id"] == PARIS_NORD_STOP_ID)
-            compiegne_index = next(i for i, s in enumerate(stops) if s["stop_id"] == COMPIEGNE_STOP_ID)
+            paris_index = next(i for i, s in enumerate(stops) if s["stop_id"] == GTFS_PARIS_NORD_STOP_ID)
+            compiegne_index = next(i for i, s in enumerate(stops) if s["stop_id"] == GTFS_COMPIEGNE_STOP_ID)
 
             if paris_index < compiegne_index:
                 # Paris -> Compiègne

@@ -11,7 +11,7 @@ import duckdb
 import pytest
 
 from gene_occasionnee import TABLE
-from gene_occasionnee.back import COMPIEGNE_STOP_ID, PARIS_NORD_STOP_ID
+from gene_occasionnee.back import GTFS_COMPIEGNE_STOP_ID, GTFS_PARIS_NORD_STOP_ID
 from gene_occasionnee.back.ingest_gtfs_static import (
     find_trips_through_both_stations,
     get_trip_info,
@@ -94,8 +94,8 @@ def test_find_trips_through_both_stations():
             stops = trip["stops"]
 
             # Find if this trip has both stations
-            has_paris = any(s["stop_id"] == PARIS_NORD_STOP_ID for s in stops)
-            has_compiegne = any(s["stop_id"] == COMPIEGNE_STOP_ID for s in stops)
+            has_paris = any(s["stop_id"] == GTFS_PARIS_NORD_STOP_ID for s in stops)
+            has_compiegne = any(s["stop_id"] == GTFS_COMPIEGNE_STOP_ID for s in stops)
 
             assert has_paris, f"Trip {trip_id} should have Paris Nord"
             assert has_compiegne, f"Trip {trip_id} should have Compiègne"
@@ -188,8 +188,8 @@ def test_trip_direction_paris_to_compiegne():
         stops = trip_01["stops"]
 
         # Find Paris and Compiègne indices
-        paris_index = next(i for i, s in enumerate(stops) if s["stop_id"] == PARIS_NORD_STOP_ID)
-        compiegne_index = next(i for i, s in enumerate(stops) if s["stop_id"] == COMPIEGNE_STOP_ID)
+        paris_index = next(i for i, s in enumerate(stops) if s["stop_id"] == GTFS_PARIS_NORD_STOP_ID)
+        compiegne_index = next(i for i, s in enumerate(stops) if s["stop_id"] == GTFS_COMPIEGNE_STOP_ID)
 
         # Paris should come before Compiègne
         assert paris_index < compiegne_index
@@ -209,8 +209,8 @@ def test_trip_direction_compiegne_to_paris():
         stops = trip_04["stops"]
 
         # Find Paris and Compiègne indices
-        paris_index = next(i for i, s in enumerate(stops) if s["stop_id"] == PARIS_NORD_STOP_ID)
-        compiegne_index = next(i for i, s in enumerate(stops) if s["stop_id"] == COMPIEGNE_STOP_ID)
+        paris_index = next(i for i, s in enumerate(stops) if s["stop_id"] == GTFS_PARIS_NORD_STOP_ID)
+        compiegne_index = next(i for i, s in enumerate(stops) if s["stop_id"] == GTFS_COMPIEGNE_STOP_ID)
 
         # Compiègne should come before Paris
         assert compiegne_index < paris_index

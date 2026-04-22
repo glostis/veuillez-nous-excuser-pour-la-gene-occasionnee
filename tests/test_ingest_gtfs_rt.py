@@ -13,7 +13,7 @@ import pytest
 from google.transit import gtfs_realtime_pb2
 
 from gene_occasionnee import TABLE
-from gene_occasionnee.back import COMPIEGNE_STOP_ID, PARIS_NORD_STOP_ID
+from gene_occasionnee.back import GTFS_COMPIEGNE_STOP_ID, GTFS_PARIS_NORD_STOP_ID
 from gene_occasionnee.back.ingest_gtfs_rt import (
     clean_stop_id,
     fetch_and_decode_gtfs_rt,
@@ -44,7 +44,7 @@ def create_mock_gtfs_rt_feed():
 
     # Add stop time updates for Paris Nord (departure)
     stu_paris = trip_update.stop_time_update.add()
-    stu_paris.stop_id = PARIS_NORD_STOP_ID
+    stu_paris.stop_id = GTFS_PARIS_NORD_STOP_ID
 
     # Set departure time (current time + 1 hour)
     departure_time = int((datetime.now().replace(microsecond=0) + timedelta(hours=1)).timestamp())
@@ -53,7 +53,7 @@ def create_mock_gtfs_rt_feed():
 
     # Add stop time updates for Compiègne (arrival)
     stu_compiegne = trip_update.stop_time_update.add()
-    stu_compiegne.stop_id = COMPIEGNE_STOP_ID
+    stu_compiegne.stop_id = GTFS_COMPIEGNE_STOP_ID
 
     # Set arrival time (current time + 2 hours)
     arrival_time = int((datetime.now().replace(microsecond=0) + timedelta(hours=2)).timestamp())
@@ -83,12 +83,12 @@ def create_mock_gtfs_rt_feed_with_schedule_relationships():
 
     # Add stop time updates for Paris Nord (departure) - SKIPPED
     stu_paris = trip_update.stop_time_update.add()
-    stu_paris.stop_id = PARIS_NORD_STOP_ID
+    stu_paris.stop_id = GTFS_PARIS_NORD_STOP_ID
     stu_paris.schedule_relationship = gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED
 
     # Add stop time updates for Compiègne (arrival) - SKIPPED
     stu_compiegne = trip_update.stop_time_update.add()
-    stu_compiegne.stop_id = COMPIEGNE_STOP_ID
+    stu_compiegne.stop_id = GTFS_COMPIEGNE_STOP_ID
     stu_compiegne.schedule_relationship = gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED
 
     return feed
@@ -393,14 +393,14 @@ def test_process_gtfs_rt_data_direction_compiegne_to_paris():
 
         # Add Compiègne departure
         stu_compiegne = trip_update.stop_time_update.add()
-        stu_compiegne.stop_id = COMPIEGNE_STOP_ID
+        stu_compiegne.stop_id = GTFS_COMPIEGNE_STOP_ID
         departure_time = int((datetime.now().replace(microsecond=0) + timedelta(hours=1)).timestamp())
         stu_compiegne.departure.time = departure_time
         stu_compiegne.departure.delay = 180  # 3 minutes delay
 
         # Add Paris Nord arrival
         stu_paris = trip_update.stop_time_update.add()
-        stu_paris.stop_id = PARIS_NORD_STOP_ID
+        stu_paris.stop_id = GTFS_PARIS_NORD_STOP_ID
         arrival_time = int((datetime.now().replace(microsecond=0) + timedelta(hours=2)).timestamp())
         stu_paris.arrival.time = arrival_time
         stu_paris.arrival.delay = 300  # 5 minutes delay

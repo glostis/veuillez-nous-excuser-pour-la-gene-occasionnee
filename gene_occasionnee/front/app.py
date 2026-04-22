@@ -17,33 +17,33 @@ COMMIT_SHA = os.getenv("COMMIT_SHA", "unknown")
 COMMIT_DATE = os.getenv("COMMIT_DATE", "unknown")
 
 DELAY_AGG = """
-    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
-             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
-    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
-             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
-    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
-             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
-    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
-             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
-    SUM(CASE WHEN arrival_time_real IS NOT NULL AND
-             (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
-             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
-             EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
-    SUM(CASE WHEN departure_schedule_relationship = 'SKIPPED' OR arrival_schedule_relationship = 'SKIPPED' THEN 1 ELSE 0 END) AS delay_skipped,
-    SUM(CASE WHEN (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
-             (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL) AND
-             (arrival_time_real IS NULL OR arrival_time_scheduled IS NULL) THEN 1 ELSE 0 END) AS delay_unknown
+    SUM(CASE WHEN siri_arrival_time_real IS NOT NULL AND
+             (siri_departure_status != 'CANCELLED' OR siri_departure_status IS NULL) AND
+             (siri_arrival_status != 'CANCELLED' OR siri_arrival_status IS NULL) AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 <= 0 THEN 1 ELSE 0 END) AS on_time,
+    SUM(CASE WHEN siri_arrival_time_real IS NOT NULL AND
+             (siri_departure_status != 'CANCELLED' OR siri_departure_status IS NULL) AND
+             (siri_arrival_status != 'CANCELLED' OR siri_arrival_status IS NULL) AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 > 0 AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 <= 5 THEN 1 ELSE 0 END) AS delay_5min,
+    SUM(CASE WHEN siri_arrival_time_real IS NOT NULL AND
+             (siri_departure_status != 'CANCELLED' OR siri_departure_status IS NULL) AND
+             (siri_arrival_status != 'CANCELLED' OR siri_arrival_status IS NULL) AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 > 5 AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 <= 15 THEN 1 ELSE 0 END) AS delay_15min,
+    SUM(CASE WHEN siri_arrival_time_real IS NOT NULL AND
+             (siri_departure_status != 'CANCELLED' OR siri_departure_status IS NULL) AND
+             (siri_arrival_status != 'CANCELLED' OR siri_arrival_status IS NULL) AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 > 15 AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 <= 45 THEN 1 ELSE 0 END) AS delay_45min,
+    SUM(CASE WHEN siri_arrival_time_real IS NOT NULL AND
+             (siri_departure_status != 'CANCELLED' OR siri_departure_status IS NULL) AND
+             (siri_arrival_status != 'CANCELLED' OR siri_arrival_status IS NULL) AND
+             EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60 > 45 THEN 1 ELSE 0 END) AS delay_over_45min,
+    SUM(CASE WHEN siri_departure_status = 'CANCELLED' OR siri_arrival_status = 'CANCELLED' THEN 1 ELSE 0 END) AS delay_skipped,
+    SUM(CASE WHEN (siri_departure_status != 'CANCELLED' OR siri_departure_status IS NULL) AND
+             (siri_arrival_status != 'CANCELLED' OR siri_arrival_status IS NULL) AND
+             (siri_arrival_time_real IS NULL OR arrival_time_scheduled IS NULL) THEN 1 ELSE 0 END) AS delay_unknown
 """
 
 
@@ -116,10 +116,10 @@ def get_stats():
                 MIN(STRFTIME(arrival_time_scheduled, '%H:%M')) AS arrival_time_scheduled,
                 MIN(EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
                 EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60) AS duration_scheduled,
-                AVG(CASE WHEN arrival_time_real IS NOT NULL AND
-                         (departure_schedule_relationship != 'SKIPPED' OR departure_schedule_relationship IS NULL) AND
-                         (arrival_schedule_relationship != 'SKIPPED' OR arrival_schedule_relationship IS NULL)
-                    THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
+                AVG(CASE WHEN siri_arrival_time_real IS NOT NULL AND
+                         (siri_departure_status != 'CANCELLED' OR siri_departure_status IS NULL) AND
+                         (siri_arrival_status != 'CANCELLED' OR siri_arrival_status IS NULL)
+                    THEN EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60
                     ELSE NULL END) AS average_delay_minutes,
                 COUNT(*) AS total_trains,
                 {DELAY_AGG}
@@ -278,30 +278,30 @@ def get_live_data():
             trip_headsign,
             departure_station_name || ' → ' || arrival_station_name AS direction,
             STRFTIME(departure_time_scheduled, '%H:%M:%S') AS departure_time_scheduled,
-            STRFTIME(departure_time_real, '%H:%M:%S') AS departure_time_real,
+            STRFTIME(siri_departure_time_real, '%H:%M:%S') AS departure_time_real,
             STRFTIME(arrival_time_scheduled, '%H:%M:%S') AS arrival_time_scheduled,
-            STRFTIME(arrival_time_real, '%H:%M:%S') AS arrival_time_real,
+            STRFTIME(siri_arrival_time_real, '%H:%M:%S') AS arrival_time_real,
             EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
             EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60 AS duration_scheduled_minutes,
             CASE
-                WHEN arrival_time_real IS NOT NULL
-                THEN EXTRACT(MINUTE FROM (arrival_time_real - departure_time_real)) +
-                     EXTRACT(HOUR FROM (arrival_time_real - departure_time_real)) * 60
+                WHEN siri_arrival_time_real IS NOT NULL AND siri_departure_time_real IS NOT NULL
+                THEN EXTRACT(MINUTE FROM (siri_arrival_time_real - siri_departure_time_real)) +
+                     EXTRACT(HOUR FROM (siri_arrival_time_real - siri_departure_time_real)) * 60
                 ELSE NULL
             END AS duration_real_minutes,
             CASE
-                WHEN departure_time_real IS NOT NULL
-                THEN EXTRACT(EPOCH FROM (departure_time_real - departure_time_scheduled)) / 60
+                WHEN siri_departure_time_real IS NOT NULL
+                THEN EXTRACT(EPOCH FROM (siri_departure_time_real - departure_time_scheduled)) / 60
                 ELSE NULL
             END AS departure_delay_minutes,
             CASE
-                WHEN arrival_time_real IS NOT NULL
-                THEN EXTRACT(EPOCH FROM (arrival_time_real - arrival_time_scheduled)) / 60
+                WHEN siri_arrival_time_real IS NOT NULL
+                THEN EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60
                 ELSE NULL
             END AS arrival_delay_minutes,
-            departure_schedule_relationship,
-            arrival_schedule_relationship,
-            updated_at
+            siri_departure_status,
+            siri_arrival_status,
+            siri_updated_at
         FROM {TABLE}
         WHERE DATE(departure_time_scheduled) = '{today}'
         ORDER BY departure_time_scheduled
@@ -337,9 +337,9 @@ def get_live_data():
                 "duration_real_minutes": clean_value(row["duration_real_minutes"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
                 "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"]),
-                "departure_schedule_relationship": clean_value(row["departure_schedule_relationship"]),
-                "arrival_schedule_relationship": clean_value(row["arrival_schedule_relationship"]),
-                "updated_at": clean_value(row["updated_at"]).isoformat() if hasattr(clean_value(row["updated_at"]), 'isoformat') else clean_value(row["updated_at"]),
+                "siri_departure_status": clean_value(row["siri_departure_status"]),
+                "siri_arrival_status": clean_value(row["siri_arrival_status"]),
+                "updated_at": clean_value(row["siri_updated_at"]).isoformat() if hasattr(clean_value(row["siri_updated_at"]), 'isoformat') else clean_value(row["siri_updated_at"]),
             }
             live_data.append(trip)
 
@@ -360,9 +360,9 @@ def get_latest_timestamp():
     try:
         query = f"""
             SELECT
-                updated_at
+                siri_updated_at
             FROM {TABLE}
-            ORDER BY updated_at DESC
+            ORDER BY siri_updated_at DESC
             LIMIT 1;
         """
 
@@ -372,7 +372,7 @@ def get_latest_timestamp():
             return jsonify({"error": "No data found"}), 404
 
         latest_data = result.iloc[0]
-        updated_at = latest_data["updated_at"]
+        updated_at = latest_data["siri_updated_at"]
 
         # Check if data is outdated (older than 15 minutes)
         from datetime import timedelta
