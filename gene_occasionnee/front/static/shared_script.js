@@ -1,6 +1,6 @@
 // Functions for delay classification and display
-function getDelayClass(delayMinutes, scheduleRelationship) {
-  if (scheduleRelationship === 'CANCELLED') {
+function getDelayClass(delayMinutes, isSkipped) {
+  if (isSkipped) {
     return 'delay-skipped';
   } else if (delayMinutes === null || delayMinutes === undefined) {
     return 'delay-unknown';
@@ -17,8 +17,8 @@ function getDelayClass(delayMinutes, scheduleRelationship) {
   }
 }
 
-function getDelayDot(delayMinutes, scheduleRelationship) {
-  const delayClass = getDelayClass(delayMinutes, scheduleRelationship);
+function getDelayDot(delayMinutes, isSkipped) {
+  const delayClass = getDelayClass(delayMinutes, isSkipped);
   return `<span class="delay-dot ${delayClass}"></span>`;
 }
 
@@ -28,9 +28,7 @@ function formatTime(timeString) {
   return timeString.split(':').slice(0, 2).join(':');
 }
 
-function formatDelayInfo(departureDelay, arrivalDelay, departureScheduleRelationship, arrivalScheduleRelationship) {
-  // Check if the trip is skipped
-  const isSkipped = departureScheduleRelationship === 'CANCELLED' || arrivalScheduleRelationship === 'CANCELLED';
+function formatDelayInfo(departureDelay, arrivalDelay, isSkipped) {
   if (isSkipped) {
     return 'Supprimé';
   }
@@ -112,17 +110,17 @@ function formatDuration(scheduledMinutes, realMinutes) {
   }
 }
 
-function formatTripTime(scheduledTime, realTime, delayMinutes, scheduleRelationship) {
+function formatTripTime(scheduledTime, realTime, delayMinutes, isSkipped) {
   const scheduledFormatted = formatTime(scheduledTime);
 
-  if (scheduleRelationship === 'CANCELLED') {
+  if (isSkipped) {
     // Skipped trip - show scheduled time with skipped dot and strikethrough
-    return `${getDelayDot(null, 'CANCELLED')} <span style="text-decoration: line-through;">${scheduledFormatted}</span> Supprimé`;
+    return `${getDelayDot(null, isSkipped)} <span style="text-decoration: line-through;">${scheduledFormatted}</span> Supprimé`;
   }
 
   if (!realTime) {
     // No realtime data - show scheduled time with unknown dot
-    return `${getDelayDot(null, scheduleRelationship)} ${scheduledFormatted}`;
+    return `${getDelayDot(null, isSkipped)} ${scheduledFormatted}`;
   }
 
   const realFormatted = formatTime(realTime);
@@ -130,10 +128,10 @@ function formatTripTime(scheduledTime, realTime, delayMinutes, scheduleRelations
 
   if (hasDelay) {
     // Show strikethrough scheduled time and real time
-    return `${getDelayDot(delayMinutes, scheduleRelationship)} <span style="text-decoration: line-through;">${scheduledFormatted}</span> ${realFormatted}`;
+    return `${getDelayDot(delayMinutes, isSkipped)} <span style="text-decoration: line-through;">${scheduledFormatted}</span> ${realFormatted}`;
   } else {
     // On time - show scheduled time with dot
-    return `${getDelayDot(delayMinutes, scheduleRelationship)} ${scheduledFormatted}`;
+    return `${getDelayDot(delayMinutes, isSkipped)} ${scheduledFormatted}`;
   }
 }
 

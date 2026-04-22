@@ -299,9 +299,12 @@ def get_live_data():
                 THEN EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60
                 ELSE NULL
             END AS arrival_delay_minutes,
-            siri_departure_status,
-            siri_arrival_status,
-            siri_updated_at
+            siri_updated_at,
+            CASE
+                WHEN siri_departure_status = 'CANCELLED' OR siri_arrival_status = 'CANCELLED'
+                THEN TRUE
+                ELSE FALSE
+            END AS is_skipped
         FROM {TABLE}
         WHERE DATE(departure_time_scheduled) = '{today}'
         ORDER BY departure_time_scheduled
@@ -337,9 +340,8 @@ def get_live_data():
                 "duration_real_minutes": clean_value(row["duration_real_minutes"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
                 "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"]),
-                "siri_departure_status": clean_value(row["siri_departure_status"]),
-                "siri_arrival_status": clean_value(row["siri_arrival_status"]),
                 "updated_at": clean_value(row["siri_updated_at"]).isoformat() if hasattr(clean_value(row["siri_updated_at"]), 'isoformat') else clean_value(row["siri_updated_at"]),
+                "is_skipped": clean_value(row["is_skipped"]),
             }
             live_data.append(trip)
 

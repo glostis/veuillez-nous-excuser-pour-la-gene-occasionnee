@@ -6,26 +6,20 @@ function generateTripHTML(trip, latestTimestamp) {
     new Date(trip.updated_at) < new Date(latestTimestamp);
   const pastTripClass = isPastTrip ? "past-trip" : "";
 
-  // Determine schedule relationship for display
-  const departureScheduleRelationship = trip.siri_departure_status || null;
-  const arrivalScheduleRelationship = trip.siri_arrival_status || null;
-  console.log("departureScheduleRelationship", departureScheduleRelationship);
-  console.log("arrivalScheduleRelationship", arrivalScheduleRelationship);
-
   return `
     <tr class="live-trip-row ${pastTripClass}">
       <td class="live-trip-line">${trip.line}</td>
       <td class="live-trip-departure">
-        ${formatTripTime(trip.departure_time_scheduled, trip.departure_time_real, trip.departure_delay_minutes, departureScheduleRelationship)}
+        ${formatTripTime(trip.departure_time_scheduled, trip.departure_time_real, trip.departure_delay_minutes, trip.is_skipped)}
       </td>
       <td class="live-trip-arrival">
-        ${formatTripTime(trip.arrival_time_scheduled, trip.arrival_time_real, trip.arrival_delay_minutes, arrivalScheduleRelationship)}
+        ${formatTripTime(trip.arrival_time_scheduled, trip.arrival_time_real, trip.arrival_delay_minutes, trip.is_skipped)}
       </td>
       <td class="live-trip-duration">
         ${formatDuration(trip.duration_scheduled_minutes, trip.duration_real_minutes)}
       </td>
       <td class="live-trip-delay">
-        ${formatDelayInfo(trip.departure_delay_minutes, trip.arrival_delay_minutes, departureScheduleRelationship, arrivalScheduleRelationship)}
+        ${formatDelayInfo(trip.departure_delay_minutes, trip.arrival_delay_minutes, trip.is_skipped)}
       </td>
     </tr>
   `;
