@@ -6,14 +6,26 @@ function generateTripHTML(trip, latestTimestamp) {
     new Date(trip.updated_at) < new Date(latestTimestamp);
   const pastTripClass = isPastTrip ? "past-trip" : "";
 
+  // Format platform display
+  const formatPlatform = (platform) => {
+    if (platform === null || platform === undefined) return '';
+    return `<span class="platform-badge">${platform}</span>`;
+  };
+
   return `
     <tr class="live-trip-row ${pastTripClass}">
       <td class="live-trip-line">${trip.line}</td>
       <td class="live-trip-departure">
-        ${formatTripTime(trip.departure_time_scheduled, trip.departure_time_real, trip.departure_delay_minutes, trip.is_skipped)}
+        <div class="trip-time-wrapper">
+          ${formatTripTime(trip.departure_time_scheduled, trip.departure_time_real, trip.departure_delay_minutes, trip.is_skipped)}
+        </div>
+        ${formatPlatform(trip.departure_platform)}
       </td>
       <td class="live-trip-arrival">
-        ${formatTripTime(trip.arrival_time_scheduled, trip.arrival_time_real, trip.arrival_delay_minutes, trip.is_skipped)}
+        <div class="trip-time-wrapper">
+          ${formatTripTime(trip.arrival_time_scheduled, trip.arrival_time_real, trip.arrival_delay_minutes, trip.is_skipped)}
+        </div>
+        ${formatPlatform(trip.arrival_platform)}
       </td>
       <td class="live-trip-duration">
         ${formatDuration(trip.duration_scheduled_minutes, trip.duration_real_minutes)}

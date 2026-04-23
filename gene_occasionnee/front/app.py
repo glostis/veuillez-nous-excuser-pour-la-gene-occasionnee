@@ -279,8 +279,10 @@ def get_live_data():
             departure_station_name || ' → ' || arrival_station_name AS direction,
             STRFTIME(departure_time_scheduled, '%H:%M:%S') AS departure_time_scheduled,
             STRFTIME(siri_departure_time_real, '%H:%M:%S') AS departure_time_real,
+            REPLACE(siri_departure_platform, 'Hall ', 'H') AS departure_platform,
             STRFTIME(arrival_time_scheduled, '%H:%M:%S') AS arrival_time_scheduled,
             STRFTIME(siri_arrival_time_real, '%H:%M:%S') AS arrival_time_real,
+            REPLACE(siri_arrival_platform, 'Hall ', 'H') AS arrival_platform,
             EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
             EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60 AS duration_scheduled_minutes,
             CASE
@@ -334,8 +336,10 @@ def get_live_data():
                 "direction": clean_value(row["direction"]),
                 "departure_time_scheduled": clean_value(row["departure_time_scheduled"]),
                 "departure_time_real": clean_value(row["departure_time_real"]),
+                "departure_platform": clean_value(row["departure_platform"]),
                 "arrival_time_scheduled": clean_value(row["arrival_time_scheduled"]),
                 "arrival_time_real": clean_value(row["arrival_time_real"]),
+                "arrival_platform": clean_value(row["arrival_platform"]),
                 "duration_scheduled_minutes": clean_value(row["duration_scheduled_minutes"]),
                 "duration_real_minutes": clean_value(row["duration_real_minutes"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),

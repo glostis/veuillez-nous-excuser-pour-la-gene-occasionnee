@@ -112,7 +112,16 @@ def update_siri_times_in_duckdb(trip_updates):
 
     # Update each trip
     updated_count = 0
-    for trip_id, departure_time_real, arrival_time_real, departure_status, arrival_status, trip_status in trip_updates:
+    for (
+        trip_id,
+        departure_time_real,
+        arrival_time_real,
+        departure_platform,
+        arrival_platform,
+        departure_status,
+        arrival_status,
+        trip_status,
+    ) in trip_updates:
         update_fields = []
         update_values = []
 
@@ -123,6 +132,14 @@ def update_siri_times_in_duckdb(trip_updates):
         if arrival_time_real:
             update_fields.append("siri_arrival_time_real = ?")
             update_values.append(arrival_time_real)
+
+        if departure_platform:
+            update_fields.append("siri_departure_platform = ?")
+            update_values.append(departure_platform)
+
+        if arrival_platform:
+            update_fields.append("siri_arrival_platform = ?")
+            update_values.append(arrival_platform)
 
         if departure_status:
             update_fields.append("siri_departure_status = ?")
@@ -259,9 +276,10 @@ def process_siri_et_lite_data(root, db_trips):
         paris_nord_arrival = None
         compiegne_departure = None
         compiegne_arrival = None
+        paris_nord_platform = None
+        compiegne_platform = None
         paris_nord_status = None
         compiegne_status = None
-        found_relevant_station = False
 
         estimated_calls = journey.findall(".//siri:EstimatedCalls/siri:EstimatedCall", SIRI_NS)
         for call in estimated_calls:
@@ -273,7 +291,8 @@ def process_siri_et_lite_data(root, db_trips):
 
             # Check if this is one of our target stations
             if stop_id in {SIRI_PARIS_NORD_STOP_ID, SIRI_COMPIEGNE_STOP_ID}:
-                found_relevant_station = True
+                journeys_with_matching_stations += 1
+
                 call_status = get_siri_call_status(call)
 
                 # Get expected times (these are the real-time predictions)
@@ -288,17 +307,23 @@ def process_siri_et_lite_data(root, db_trips):
                 if expected_arrival_elem is not None:
                     expected_arrival_time = parse_siri_timestamp(expected_arrival_elem.text)
 
+                platform = call.find("siri:DeparturePlatformName", SIRI_NS)
+                if platform is None:
+                    platform = call.find("siri:ArrivalPlatformName", SIRI_NS)
+                platform_name = None
+                if platform is not None:
+                    platform_name = platform.text
+
                 if stop_id == SIRI_PARIS_NORD_STOP_ID:
                     paris_nord_departure = expected_departure_time
                     paris_nord_arrival = expected_arrival_time
+                    paris_nord_platform = platform_name
                     paris_nord_status = call_status
                 elif stop_id == SIRI_COMPIEGNE_STOP_ID:
                     compiegne_departure = expected_departure_time
                     compiegne_arrival = expected_arrival_time
+                    compiegne_platform = platform_name
                     compiegne_status = call_status
-
-        if found_relevant_station:
-            journeys_with_matching_stations += 1
 
         # For each matching database trip, determine direction and update accordingly
         for db_trip in matching_db_trips:
@@ -310,11 +335,15 @@ def process_siri_et_lite_data(root, db_trips):
             if departure_station == "Paris Nord" and arrival_station == "Compiègne":
                 departure_time_real = paris_nord_departure
                 arrival_time_real = compiegne_arrival
+                departure_platform = paris_nord_platform
+                arrival_platform = compiegne_platform
                 departure_status = paris_nord_status
                 arrival_status = compiegne_status
             elif departure_station == "Compiègne" and arrival_station == "Paris Nord":
                 departure_time_real = compiegne_departure
                 arrival_time_real = paris_nord_arrival
+                departure_platform = compiegne_platform
+                arrival_platform = paris_nord_platform
                 departure_status = compiegne_status
                 arrival_status = paris_nord_status
             else:
@@ -328,7 +357,16 @@ def process_siri_et_lite_data(root, db_trips):
             # We want to track status even if no time updates are available
             if departure_time_real or arrival_time_real or departure_status or arrival_status or trip_status:
                 trip_updates.append(
-                    (trip_id, departure_time_real, arrival_time_real, departure_status, arrival_status, trip_status)
+                    (
+                        trip_id,
+                        departure_time_real,
+                        arrival_time_real,
+                        departure_platform,
+                        arrival_platform,
+                        departure_status,
+                        arrival_status,
+                        trip_status,
+                    )
                 )
 
     if debug:
