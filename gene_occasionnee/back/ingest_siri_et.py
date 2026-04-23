@@ -281,8 +281,15 @@ def process_siri_et_lite_data(root, db_trips):
         paris_nord_status = None
         compiegne_status = None
 
+        # Process both EstimatedCalls and RecordedCalls
+        # EstimatedCalls are for future stops, RecordedCalls are for past stops
         estimated_calls = journey.findall(".//siri:EstimatedCalls/siri:EstimatedCall", SIRI_NS)
-        for call in estimated_calls:
+        recorded_calls = journey.findall(".//siri:RecordedCalls/siri:RecordedCall", SIRI_NS)
+
+        # Combine both types of calls
+        all_calls = estimated_calls + recorded_calls
+
+        for call in all_calls:
             stop_point_ref = call.find("siri:StopPointRef", SIRI_NS)
             if stop_point_ref is None:
                 continue
