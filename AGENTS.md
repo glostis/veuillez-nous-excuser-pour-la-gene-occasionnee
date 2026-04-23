@@ -17,7 +17,7 @@ This document describes how to run the Python scripts and analyze the data store
 │   ├── back/                                    # Backend data processing
 │   │   ├── __init__.py                          # Backend constants and config
 │   │   ├── ingest_gtfs_static.py                # GTFS static data ingestion
-│   │   ├── ingest_gtfs_rt.py                    # GTFS real-time data ingestion
+│   │   ├── ingest_siri_et.py                    # SIRI ET Lite data ingestion
 │   │   └── scheduler.py                         # Scheduled ingestion runner
 │   └── front/                                   # Frontend web application
 │       ├── __init__.py
@@ -53,7 +53,7 @@ This document describes how to run the Python scripts and analyze the data store
 The project aggregates and analyzes punctuality data for TER trains between Paris and Compiègne. It consists of:
 
 1. **GTFS Static Ingestion**: Fetches scheduled trip data from SNCF GTFS static feed
-2. **GTFS Real-Time Ingestion**: Updates with real-time delays from SNCF GTFS-RT feed
+2. **SIRI ET Lite Ingestion**: Updates with real-time delays and platforms from SNCF SIRI ET Lite feed
 3. **DuckDB Database**: Stores all processed trip data at `data/gtfs.duckdb`
 4. **Flask Web Application**: Visualizes analytics and statistics
 
@@ -74,8 +74,8 @@ Once the environment is activated, you can run the Python scripts directly:
 # Run GTFS static ingestion
 uv run python -m gene_occasionnee.back.ingest_gtfs_static
 
-# Run GTFS real-time ingestion
-uv run python -m gene_occasionnee.back.ingest_gtfs_rt
+# Run SIRI ET real-time ingestion
+uv run python -m gene_occasionnee.back.ingest_siri_et
 
 # Run the scheduler (both ingestion processes scheduled at given intervals)
 uv run python -m gene_occasionnee.back
@@ -101,17 +101,16 @@ The `ingest_gtfs_static.py` script:
 uv run python -m gene_occasionnee.back.ingest_gtfs_static
 ```
 
-### GTFS Real-Time Ingestion
+### SIRI ET Lite Ingestion
 
-The `ingest_gtfs_rt.py` script:
+The `ingest_siri_et.py` script:
 
-1. Fetches real-time updates from SNCF GTFS-RT feed
-2. Updates actual departure/arrival times and delays
-3. Updates the DuckDB database with real-time data
+1. Fetches real-time updates from SNCF SIRI ET Lite feed
+2. Updates actual departure/arrival times and platforms in the DuckDB database
 
 **Usage:**
 ```bash
-uv run python -m gene_occasionnee.back.ingest_gtfs_rt
+uv run python -m gene_occasionnee.back.ingest_siri_et
 ```
 
 ### Scheduler

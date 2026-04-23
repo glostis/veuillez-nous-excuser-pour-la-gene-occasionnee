@@ -4,7 +4,7 @@ SIRI ET Lite Data Ingestion Script
 This script processes SIRI ET Lite data to update actual departure and arrival times
 for trips between Paris Gare du Nord and Compiègne in the DuckDB database.
 
-Usage: uv run python -m gene_occasionnee.back.ingest_gtfs_rt
+Usage: uv run python -m gene_occasionnee.back.ingest_siri_et
 """
 
 import xml.etree.ElementTree as ET

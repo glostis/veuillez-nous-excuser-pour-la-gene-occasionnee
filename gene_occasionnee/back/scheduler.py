@@ -4,7 +4,7 @@ from datetime import datetime
 
 import schedule
 
-from gene_occasionnee.back import ingest_gtfs_rt, ingest_gtfs_static
+from gene_occasionnee.back import ingest_gtfs_static, ingest_siri_et
 
 
 def run_static_ingestion(debug=False):
@@ -19,16 +19,16 @@ def run_static_ingestion(debug=False):
 
 
 def run_rt_ingestion(debug=False):
-    """Run the real-time GTFS data ingestion."""
+    """Run the real-time SIRI ET data ingestion."""
     # Check time window first
     if not should_run_rt_ingestion():
         return
 
     try:
-        ingest_gtfs_rt.debug = debug
-        ingest_gtfs_rt.main()
+        ingest_siri_et.debug = debug
+        ingest_siri_et.main()
     except Exception as e:
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Error running real-time GTFS ingestion: {e}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Error running real-time SIRI ET ingestion: {e}")
 
 
 def should_run_rt_ingestion():
@@ -57,7 +57,7 @@ def run_scheduler(debug=False):
 
 def main_scheduler():
     """Main entry point for the back module."""
-    parser = argparse.ArgumentParser(description="GTFS Data Ingestion Scheduler")
+    parser = argparse.ArgumentParser(description="SNCF Open-Data Ingestion Scheduler")
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
     args = parser.parse_args()
 
