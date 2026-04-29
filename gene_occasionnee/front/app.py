@@ -107,6 +107,34 @@ def get_stats():
 
     try:
         if split_by_line:
+            # For a given trip_headsign ("train trip number"), there can be several (departure, arrival) times
+            # because the train timetable changes slightly over time. We want to use the most common one to
+            # display in the API results.
+            most_common_query = f"""
+                SELECT
+                    trip_headsign,
+                    STRFTIME(departure_time_scheduled, '%H:%M') AS display_departure_time,
+                    STRFTIME(arrival_time_scheduled, '%H:%M') AS display_arrival_time,
+                    MIN(EXTRACT(MINUTE FROM (arrival_time_scheduled - departure_time_scheduled)) +
+                    EXTRACT(HOUR FROM (arrival_time_scheduled - departure_time_scheduled)) * 60) AS duration_scheduled
+                FROM {TABLE}
+                {date_filter(start_date, end_date)}
+                GROUP BY trip_headsign, display_departure_time, display_arrival_time
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY trip_headsign ORDER BY COUNT(*) DESC) = 1
+            """
+
+            most_common_results = conn.execute(most_common_query).fetchdf()
+            most_common_dict = {
+                row["trip_headsign"]: {
+                    "display_departure_time": row["display_departure_time"],
+                    "display_arrival_time": row["display_arrival_time"],
+                    "duration_scheduled": int(row["duration_scheduled"])
+                    if row["duration_scheduled"] is not None
+                    else 0,
+                }
+                for _, row in most_common_results.iterrows()
+            }
+
             # Use SQL aggregation to get statistics by line
             query = f"""
             SELECT
@@ -137,14 +165,17 @@ def get_stats():
             # Calculate percentages and format response
             stats_by_line = []
             for _, row in results.iterrows():
+                # Extract trip_headsign from line (format: "route_short_name trip_headsign")
+                trip_headsign = row["line"].split()[1]
+
+                most_common_info = most_common_dict[trip_headsign]
+
                 d = {
                     "line": row["line"],
                     "direction": row["direction"],
-                    "departure_time_scheduled": row["departure_time_scheduled"],
-                    "arrival_time_scheduled": row["arrival_time_scheduled"],
-                    "duration_scheduled": int(row["duration_scheduled"])
-                    if row["duration_scheduled"] is not None
-                    else 0,
+                    "departure_time_scheduled": most_common_info["display_departure_time"],
+                    "arrival_time_scheduled": most_common_info["display_arrival_time"],
+                    "duration_scheduled": most_common_info["duration_scheduled"],
                     "average_delay_minutes": float(row["average_delay_minutes"])
                     if row["average_delay_minutes"] is not None
                     else 0,
@@ -324,7 +355,7 @@ def get_live_data():
             def clean_value(value):
                 if isinstance(value, float) and np.isnan(value):
                     return None
-                elif hasattr(value, '__class__') and 'NAType' in str(value.__class__):
+                elif hasattr(value, "__class__") and "NAType" in str(value.__class__):
                     return None
                 elif value is None:
                     return None
@@ -344,7 +375,9 @@ def get_live_data():
                 "duration_real_minutes": clean_value(row["duration_real_minutes"]),
                 "departure_delay_minutes": clean_value(row["departure_delay_minutes"]),
                 "arrival_delay_minutes": clean_value(row["arrival_delay_minutes"]),
-                "updated_at": clean_value(row["siri_updated_at"]).isoformat() if hasattr(clean_value(row["siri_updated_at"]), 'isoformat') else clean_value(row["siri_updated_at"]),
+                "updated_at": clean_value(row["siri_updated_at"]).isoformat()
+                if hasattr(clean_value(row["siri_updated_at"]), "isoformat")
+                else clean_value(row["siri_updated_at"]),
                 "is_skipped": clean_value(row["is_skipped"]),
             }
             live_data.append(trip)
