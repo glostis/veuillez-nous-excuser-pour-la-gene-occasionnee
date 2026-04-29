@@ -1,7 +1,7 @@
 function generateTableHTML(stats, title) {
   let html = `<h3>${title}</h3>`;
   html += '<div class="table-container"><table>';
-  html += '<thead><tr><th>Ligne</th><th>Durée</th><th>Retard moyen</th><th>Retards</th><th>Trajets</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Supprimé</th><th>Inconnu</th></tr></thead><tbody>';
+  html += '<thead><tr><th>Ligne</th><th>Jours</th><th>Durée</th><th>Retard moyen</th><th>Retards</th><th>Trajets</th><th>À l\'heure</th><th>≤5 min</th><th>≤15 min</th><th>≤45 min</th><th>>45 min</th><th>Supprimé</th><th>Inconnu</th></tr></thead><tbody>';
 
   stats.forEach((stat) => {
     // Format the line information: C13 16:30 - 17:28
@@ -14,8 +14,59 @@ function generateTableHTML(stats, title) {
       durationDisplay = formatDurationValue(stat.duration_scheduled);
     }
 
+    // Format days column with day ranges
+    let joursDisplay = '';
+    if (stat.jours) {
+      // Split by comma and trim whitespace
+      const daysArray = stat.jours.split(',').map(d => d.trim());
+      const dayOrder = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
+
+      // Sort days according to day order
+      const sortedDays = daysArray.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+      // Group contiguous days into ranges
+      const ranges = [];
+      if (sortedDays.length === 0) {
+        joursDisplay = '';
+      } else if (sortedDays.length === 1) {
+        joursDisplay = sortedDays[0];
+      } else {
+        let currentRange = [sortedDays[0]];
+
+        for (let i = 1; i < sortedDays.length; i++) {
+          const currentDay = sortedDays[i];
+          const prevDay = sortedDays[i - 1];
+          const currentIndex = dayOrder.indexOf(currentDay);
+          const prevIndex = dayOrder.indexOf(prevDay);
+
+          if (currentIndex === prevIndex + 1) {
+            // Contiguous day
+            currentRange.push(currentDay);
+          } else {
+            // Non-contiguous, finalize current range
+            if (currentRange.length === 1) {
+              ranges.push(currentRange[0]);
+            } else {
+              ranges.push(`${currentRange[0]} - ${currentRange[currentRange.length - 1]}`);
+            }
+            currentRange = [currentDay];
+          }
+        }
+
+        // Add the last range
+        if (currentRange.length === 1) {
+          ranges.push(currentRange[0]);
+        } else {
+          ranges.push(`${currentRange[0]} - ${currentRange[currentRange.length - 1]}`);
+        }
+
+        joursDisplay = ranges.join(', ');
+      }
+    }
+
     html += `<tr>
                       <td>${lineDisplay}</td>
+                      <td>${joursDisplay}</td>
                       <td>${durationDisplay}</td>
                       <td>${stat.average_delay_minutes.toFixed(1)} min</td>
                       <td>${generateInlineChartHTML(stat)}</td>

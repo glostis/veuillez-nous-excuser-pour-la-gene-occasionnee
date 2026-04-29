@@ -150,7 +150,20 @@ def get_stats():
                     THEN EXTRACT(EPOCH FROM (siri_arrival_time_real - arrival_time_scheduled)) / 60
                     ELSE NULL END) AS average_delay_minutes,
                 COUNT(*) AS total_trains,
-                {DELAY_AGG}
+                {DELAY_AGG},
+                STRING_AGG(
+                    DISTINCT CASE STRFTIME(departure_time_scheduled, '%w')
+                        WHEN '0' THEN 'Di'
+                        WHEN '1' THEN 'Lu'
+                        WHEN '2' THEN 'Ma'
+                        WHEN '3' THEN 'Me'
+                        WHEN '4' THEN 'Je'
+                        WHEN '5' THEN 'Ve'
+                        WHEN '6' THEN 'Sa'
+                        ELSE ''
+                    END,
+                    ', '
+                ) AS jours
             FROM {TABLE}
             {date_filter(start_date, end_date)}
             GROUP BY line
@@ -179,6 +192,7 @@ def get_stats():
                     "average_delay_minutes": float(row["average_delay_minutes"])
                     if row["average_delay_minutes"] is not None
                     else 0,
+                    "jours": row["jours"],
                     **row_to_delays(row),
                 }
                 stats_by_line.append(d)
